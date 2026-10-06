@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "4c113ef6-6a2c-4a5f-be08-fe2de7ee2fa7",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/candidate.json",
+  "output": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/base-datos.html",
+  "specification": {
+    "sha256": "3de59a04369e029c409b7dfac26a0f2e3b4f95505eb836dde4c5c0dabd990f6e",
+    "bytes": 9990
+  },
+  "artifact": {
+    "sha256": "b8ed479fc38574525ee53f1b9e80eeebe29015e4e6ca1baf0ca5256565a089ac",
+    "bytes": 781769
+  }
+}

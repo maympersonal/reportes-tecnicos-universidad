@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Modelo lógico de la base de datos",
+    "output": ".archify/architecture-base-datos-20261006-113714/base-datos.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/maympersonal/reportes-tecnicos-universidad",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "90b49853d0d7d1c3de6fd025002880899946459f"
+    },
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "database": { "label": "Tabla de dominio" },
+        "security": { "label": "Autenticación Django" }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "tipo_area",
+      "type": "database",
+      "label": "TipoArea",
+      "sublabel": "PK id · UQ nombre · descripción",
+      "tag": "core_tipoarea",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 10, "end_line": 20, "label": "modelo" }
+      ],
+      "pos": [20, 300],
+      "size": [170, 76]
+    },
+    {
+      "id": "area",
+      "type": "database",
+      "label": "Area",
+      "sublabel": "PK id · UQ nombre · FK tipo_area",
+      "tag": "core_area",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 23, "end_line": 33, "label": "modelo y FK" }
+      ],
+      "pos": [290, 300],
+      "size": [190, 76]
+    },
+    {
+      "id": "ubicacion",
+      "type": "database",
+      "label": "Ubicacion",
+      "sublabel": "PK id · UQ nombre+area · FK area",
+      "tag": "core_ubicacion",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 36, "end_line": 48, "label": "modelo y restricción" }
+      ],
+      "pos": [290, 60],
+      "size": [190, 76]
+    },
+    {
+      "id": "perfil_usuario",
+      "type": "database",
+      "label": "PerfilUsuario",
+      "sublabel": "PK id · FK user UNIQUE · FK area NULL",
+      "tag": "accounts_perfilusuario",
+      "sources": [
+        { "path": "backend/apps/accounts/models.py", "line": 8, "end_line": 32, "label": "modelo y FKs" }
+      ],
+      "pos": [290, 540],
+      "size": [210, 76]
+    },
+    {
+      "id": "tipo_tarea",
+      "type": "database",
+      "label": "TipoTarea",
+      "sublabel": "PK id · UQ código · FK creado_por NULL",
+      "tag": "core_tipotarea",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 54, "end_line": 74, "label": "modelo y FK" }
+      ],
+      "pos": [590, 60],
+      "size": [210, 76]
+    },
+    {
+      "id": "reporte",
+      "type": "database",
+      "label": "Reporte",
+      "sublabel": "PK id · UQ código · estado · prioridad",
+      "tag": "core_reporte",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 94, "end_line": 126, "label": "campos y FKs" },
+        { "path": "backend/apps/core/models.py", "line": 134, "end_line": 141, "label": "código automático" }
+      ],
+      "pos": [590, 295],
+      "size": [210, 86]
+    },
+    {
+      "id": "equipo_reporte",
+      "type": "database",
+      "label": "EquipoReporte",
+      "sublabel": "PK id · FK reporte · activo/marca/modelo",
+      "tag": "core_equiporeporte",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 164, "end_line": 176, "label": "modelo y FK" }
+      ],
+      "pos": [590, 540],
+      "size": [210, 76]
+    },
+    {
+      "id": "archivo_reporte",
+      "type": "database",
+      "label": "ArchivoReporte",
+      "sublabel": "PK id · FK reporte · FK subido_por NULL",
+      "tag": "core_archivoreporte",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 182, "end_line": 199, "label": "modelo y FKs" }
+      ],
+      "pos": [920, 60],
+      "size": [220, 76]
+    },
+    {
+      "id": "historial_estado",
+      "type": "database",
+      "label": "HistorialEstado",
+      "sublabel": "PK id · FK reporte · FK usuario NULL",
+      "tag": "core_historialestado",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 205, "end_line": 221, "label": "modelo y FKs" }
+      ],
+      "pos": [920, 300],
+      "size": [220, 76]
+    },
+    {
+      "id": "notificacion",
+      "type": "database",
+      "label": "Notificacion",
+      "sublabel": "PK id · FK usuario · FK reporte NULL",
+      "tag": "core_notificacion",
+      "sources": [
+        { "path": "backend/apps/core/models.py", "line": 227, "end_line": 262, "label": "modelo y FKs" },
+        { "path": "backend/apps/core/migrations/0002_notificacion.py", "line": 16, "end_line": 33, "label": "migración" }
+      ],
+      "pos": [920, 540],
+      "size": [220, 76]
+    },
+    {
+      "id": "auth_user",
+      "type": "security",
+      "label": "User",
+      "sublabel": "Usuario local Django · grupos y permisos",
+      "tag": "auth_user",
+      "sources": [
+        { "path": "backend/apps/accounts/admin.py", "line": 1, "end_line": 20, "label": "modelo User" },
+        { "path": "backend/config/settings.py", "line": 200, "end_line": 205, "label": "backend local" }
+      ],
+      "pos": [1300, 295],
+      "size": [210, 86]
+    },
+    {
+      "id": "auth_group",
+      "type": "security",
+      "label": "Group",
+      "sublabel": "Roles Administrador/Auditor/Tecnico",
+      "tag": "auth_group",
+      "sources": [
+        { "path": "backend/apps/accounts/models.py", "line": 46, "end_line": 55, "label": "lectura de grupos" },
+        { "path": "backend/config/settings.py", "line": 186, "end_line": 193, "label": "roles definidos" }
+      ],
+      "pos": [1530, 540],
+      "size": [200, 76]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Esquema relacional administrado por Django ORM",
+      "wraps": [
+        "tipo_area",
+        "area",
+        "ubicacion",
+        "perfil_usuario",
+        "tipo_tarea",
+        "reporte",
+        "equipo_reporte",
+        "archivo_reporte",
+        "historial_estado",
+        "notificacion",
+        "auth_user",
+        "auth_group"
+      ],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    {
+      "id": "tipoarea_area",
+      "from": "tipo_area",
+      "to": "area",
+      "label": "1:N · PROTECT",
+      "variant": "emphasis"
+    },
+    {
+      "id": "area_reporte",
+      "from": "area",
+      "to": "reporte",
+      "label": "1:N · PROTECT",
+      "variant": "emphasis"
+    },
+    {
+      "id": "area_ubicacion",
+      "from": "area",
+      "to": "ubicacion",
+      "label": "1:N · CASCADE"
+    },
+    {
+      "id": "area_perfil",
+      "from": "area",
+      "to": "perfil_usuario",
+      "label": "1:N · SET_NULL"
+    },
+    {
+      "id": "tipotarea_reporte",
+      "from": "tipo_tarea",
+      "to": "reporte",
+      "label": "1:N · PROTECT",
+      "variant": "emphasis"
+    },
+    {
+      "id": "reporte_equipo",
+      "from": "reporte",
+      "to": "equipo_reporte",
+      "label": "1:N · CASCADE"
+    },
+    {
+      "id": "reporte_archivo",
+      "from": "reporte",
+      "to": "archivo_reporte",
+      "label": "1:N · CASCADE"
+    },
+    {
+      "id": "reporte_historial",
+      "from": "reporte",
+      "to": "historial_estado",
+      "label": "1:N · CASCADE",
+      "variant": "emphasis"
+    },
+    {
+      "id": "reporte_notificacion",
+      "from": "reporte",
+      "to": "notificacion",
+      "label": "1:N · CASCADE · FK NULL"
+    },
+    {
+      "id": "user_perfil",
+      "from": "auth_user",
+      "to": "perfil_usuario",
+      "label": "1:1 · CASCADE",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "route": "orthogonal-h",
+      "via": [[1405, 740], [395, 740]]
+    },
+    {
+      "id": "user_group",
+      "from": "auth_user",
+      "to": "auth_group",
+      "label": "N:M · auth_user_groups",
+      "variant": "security"
+    },
+    {
+      "id": "user_tipotarea",
+      "from": "auth_user",
+      "to": "tipo_tarea",
+      "label": "1:N · creado_por · SET_NULL",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "top",
+      "route": "orthogonal-h",
+      "via": [[1405, 20], [695, 20]]
+    },
+    {
+      "id": "user_reporte",
+      "from": "auth_user",
+      "to": "reporte",
+      "label": "1:N · creador PROTECT / técnico SET_NULL",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "route": "orthogonal-h",
+      "via": [[1405, 680], [850, 680], [850, 338]]
+    },
+    {
+      "id": "user_archivo",
+      "from": "auth_user",
+      "to": "archivo_reporte",
+      "label": "1:N · subido_por · SET_NULL",
+      "variant": "security"
+    },
+    {
+      "id": "user_historial",
+      "from": "auth_user",
+      "to": "historial_estado",
+      "label": "1:N · usuario · SET_NULL",
+      "variant": "security"
+    },
+    {
+      "id": "user_notificacion",
+      "from": "auth_user",
+      "to": "notificacion",
+      "label": "1:N · CASCADE",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Lectura del diagrama",
+      "items": [
+        "Cada flecha va de la tabla padre a la tabla que contiene la clave foránea.",
+        "Las etiquetas indican cardinalidad y política on_delete; NULL identifica una FK opcional."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Persistencia configurable",
+      "items": [
+        "Con DATABASE_URL, Django usa PostgreSQL mediante dj_database_url.",
+        "Sin DATABASE_URL, usa SQLite en backend/db.sqlite3."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Decisión de alcance",
+      "items": [
+        "Se incluyen los diez modelos propios y las entidades User/Group que participan en sus relaciones.",
+        "Se omiten tablas internas de Django: permisos, sesiones, content types, admin log y migrations."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Detalle importante",
+      "items": [
+        "Reporte.ubicacion es texto libre; no existe una FK desde Reporte hacia el catálogo Ubicacion.",
+        "ArchivoReporte guarda la ruta del archivo en la base; los bytes viven bajo MEDIA_ROOT."
+      ]
+    }
+  ]
+}

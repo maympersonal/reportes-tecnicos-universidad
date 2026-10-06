@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "skipped",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/candidate.json",
+    "sha256": "3de59a04369e029c409b7dfac26a0f2e3b4f95505eb836dde4c5c0dabd990f6e",
+    "bytes": 9990
+  },
+  "artifact": {
+    "path": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/base-datos.html",
+    "sha256": "b8ed479fc38574525ee53f1b9e80eeebe29015e4e6ca1baf0ca5256565a089ac",
+    "bytes": 781769
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "skipped"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/chrome-unavailable",
+      "severity": "warning",
+      "message": "Chrome or Chromium is unavailable. Set ARCHIFY_CHROME to its executable path.",
+      "subject": {
+        "artifact": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/base-datos.html"
+      },
+      "evidence": {
+        "executable": null
+      },
+      "supportedFixes": [
+        "set ARCHIFY_CHROME to a Chrome or Chromium executable and rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/base-datos.finalize.json",
+    "summaryReceipt": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/base-datos.finalize-summary.json",
+    "browserCheckReceipt": "/home/maym/Documentos/Nodo/reportes-tecnicos-universidad/.archify/architecture-base-datos-20261006-113714/base-datos.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-06T15:41:29.146Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 982
+}
