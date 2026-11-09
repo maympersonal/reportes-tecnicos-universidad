@@ -1,0 +1,280 @@
+     1→     1→# Worklog — Sistema de Reportes Técnicos
+     2→     2→
+     3→     3→---
+     4→     4→Task ID: 1-5
+     5→     5→Agent: main (Claude)
+     6→     6→Task: Construir la base completa del backend (schema, auth, API de catálogos, reportes, estadísticas, notificaciones y exportación) sobre Next.js 16 + Prisma/SQLite.
+     7→     7→
+     8→     8→Work Log:
+     9→     9→- Instaladas dependencias: `xlsx`, `jspdf`, `jspdf-autotable` para exportación.
+    10→    10→- Escrito `prisma/schema.prisma` con modelos: User, Session, TipoArea, Area, Ubicacion, TipoTarea, Reporte, EquipoReporte, ArchivoReporte, HistorialEstado, Notificacion.
+    11→    11→- `bun run db:push` ejecutado (DB en `file:/home/z/my-project/db/custom.db`).
+    12→    12→- Escrito `prisma/seed.ts` y ejecutado: 6 usuarios (admin/tec1..4/auditor, password "123456"), 4 tipos de área, 7 áreas, 8 ubicaciones, 8 tipos de tarea, 53 reportes distribuidos en 6 meses con historial y notificaciones.
+    13→    13→- Reducido log de Prisma a `['warn','error']`.
+    14→    14→- Creado `src/lib/constants.ts`: estados, prioridades, roles, niveles de ranking, tipos de tarea default, navegación, tipo `ViewKey`.
+    15→    15→- Creado `src/lib/auth.ts`: hashing con `crypto.scrypt` (sin dependencias), sesiones en tabla `Session` (token aleatorio, TTL 7 días), helpers `getUserFromRequest`, `requireRole`, `publicUser`.
+    16→    16→- Creado `src/lib/serialize.ts`: `serializeReporte` (full) y `serializeReporteLite` (lista) con campos calculados (tiempoResolucionHoras, tecnicoNombre, creadoPorNombre).
+    17→    17→- Creado `src/lib/stats.ts`: `visibilityWhere` (reglas por rol), `dateWhere`, `computeScore`, `estrellasSegun`, `buildRanking`.
+    18→    18→- Creado `src/lib/store.ts`: Zustand con persist en `localStorage` (`srt-storage`). Estado: user, token, view (SPA), selectedReporteId, reportesFilter, sidebarCollapsed, theme.
+    19→    19→- Creado `src/lib/api.ts`: wrapper `apiFetch` (injecta Bearer, maneja 401→logout), `apiUpload` (FormData), `apiDownload` (blobs).
+    20→    20→
+    21→    21→API Routes creadas:
+    22→    22→- `POST/GET /api/auth/login`
+    23→    23→- `GET /api/auth/me`
+    24→    24→- `DELETE /api/auth/me/eliminar` (derecho al olvido — anonimiza)
+    25→    25→- `GET /api/tipos-area`
+    26→    26→- `GET /api/areas`
+    27→    27→- `GET /api/ubicaciones`
+    28→    28→- `GET/POST /api/tipos-tarea`
+    29→    29→- `GET /api/tecnicos`
+    30→    30→- `GET/POST /api/reportes` (filtros + paginación + visibilidad por rol)
+    31→    31→- `GET/PATCH/DELETE /api/reportes/[id]`
+    32→    32→- `POST /api/reportes/[id]/cambiar-estado` (historial + notificaciones)
+    33→    33→- `POST /api/reportes/[id]/subir-archivo` (multipart a /public/uploads)
+    34→    34→- `DELETE /api/reportes/[id]/eliminar-archivo/[aid]`
+    35→    35→- `GET /api/estadisticas/resumen | por-mes | por-tipo | por-area | por-tecnico | ranking`
+    36→    36→- `GET/POST /api/notificaciones` + `GET /api/notificaciones/pendientes` + `POST /api/notificaciones/marcar-leidas` + `PATCH /api/notificaciones/[id]/marcar-leida`
+    37→    37→- `GET /api/exportar/reportes/excel` (lista filtrada)
+    38→    38→- `GET /api/exportar/reportes/[id]/pdf | excel | word`
+    39→    39→- `GET /api/exportar/estadisticas/excel` (5 hojas)
+    40→    40→
+    41→    41→Stage Summary:
+    42→    42→- Backend 100% funcional. `bun run lint` pasa sin errores.
+    43→    43→- Credenciales demo: admin/123456, tec1/123456, auditor/123456.
+    44→    44→- Arquitectura SPA confirmada: SOLO la ruta `/` (src/app/page.tsx) es visible para el usuario; toda la navegación se gestiona con el store de Zustand (`view`, `selectedReporteId`).
+    45→    45→- Contrato de datos para el frontend: los endpoints devuelven `{ items, total, page, ... }` para listas y `{ item }` para entidades individuales. `serializeReporte` incluye equipos, archivos, historial (con usuario), tecnicoNombre, creadoPorNombre, tiempoResolucionHoras.
+    46→    46→- El store expone: `useAppStore` con `user, token, view, selectedReporteId, reportesFilter, sidebarCollapsed, theme` y setters.
+    47→    47→- Próximos pasos: shell frontend (AppShell, Sidebar, Topbar, Login) y luego las vistas (Dashboard, Reportes, Detalle, Form, Estadísticas, Ranking, Privacidad, Términos) que se delegarán a subagentes con este contrato.
+    48→    48→
+    49→    49→---
+    50→    50→Task ID: 9
+    51→    51→Agent: full-stack-developer
+    52→    52→Task: Implementar las vistas de Estadísticas y Ranking (SPA views) sobre los hooks y el store ya construidos.
+    53→    53→
+    54→    54→Work Log:
+    55→    55→- Leí worklog, `src/lib/hooks.ts`, `src/lib/constants.ts`, `src/lib/store.ts`, `src/lib/api.ts`, `badge-estado.tsx`, `globals.css` (animación `animate-crown`, utilidad `bg-institucional`, scrollbar-thin), y el `dashboard-view.tsx` como referencia de patrones.
+    56→    56→- Sobrescritas dos vistas (las únicas permitidas):
+    57→    57→
+    58→    58→1. `src/components/app/views/estadisticas-view.tsx` (exporta `EstadisticasView`):
+    59→    59→   - Header con título "Estadísticas" + botón "Exportar Excel" (llama a `apiDownload('/exportar/estadisticas/excel?desde=…&hasta=…', 'estadisticas.xlsx')`).
+    60→    60→   - Card de Filtros con dos `<Input type="date">` (desde, hasta) y botones "Limpiar" en header y cuerpo. Filtros pasados en vivo a `useResumen`, `usePorTipo`, `usePorArea`, `usePorTecnico`.
+    61→    61→   - Fila de 6 mini-KPIs (grid 2/3/6): Total, Pendientes, En proceso, Resueltos, Cerrados, Tiempo prom (h). Cada uno con icono Lucide, color semántico y `<Skeleton>` mientras carga.
+    62→    62→   - 4 gráficas recharts en `ResponsiveContainer` (altura ~260):
+    63→    63→     · LineChart "Reportes por mes" — dos líneas (total=esmeralda sólida, resueltos=sky con dash) con dots, legend y tooltip.
+    64→    64→     · PieChart "Distribución por tipo" con leyenda scrollable (max-h-32, scrollbar-thin) debajo.
+    65→    65→     · BarChart vertical (horizontal bars) "Reportes por área".
+    66→    66→     · BarChart "Carga por técnico" con dos barras por técnico (asignados=ámbar, resueltos=esmeralda) + legend.
+    67→    67→   - Paleta consistente: emerald `#10b981`, sky `#0ea5e9`, amber `#f59e0b`, pink, cyan, lime, orange, teal.
+    68→    68→   - Estados vacíos y skeletons en cada gráfica.
+    69→    69→   - Footer informativo con salud del sistema y tasa de resolución (de `useResumen`).
+    70→    70→
+    71→    71→2. `src/components/app/views/ranking-view.tsx` (exporta `RankingView`):
+    72→    72→   - Header con título "Ranking de técnicos" + botón "Exportar Excel" (`apiDownload('/exportar/estadisticas/excel', 'ranking.xlsx')` — el Excel de estadísticas ya incluye hoja de ranking).
+    73→    73→   - Card de controles: Input de búsqueda (con debounce 300 ms → `useRanking(q)`), Select de Período (general/mes/trimestre — visual), y toggle de vista Podio/Tabla (estado local, default Podio).
+    74→    74→   - Podio: las 3 primeras posiciones como 3 Cards (orden sm: #2 izq, #1 centro elevado con `sm:scale-105 sm:z-10`, #3 der) usando `PodiumCard`. El #1 lleva corona 👑 con `animate-crown`, avatar más grande (h-20 w-20), avatar `bg-institucional` con iniciales, nivel (badge con `getNivel(score)` y color map), estrellas (★/☆), score grande, stats (resueltos/asignados/tiempo prom), badge Activo/Inactivo. En móvil apila verticalmente con #1 primero (orden natural del DOM).
+    75→    75→   - Tabla de posiciones 4..N (shadcn Table) con columnas #, Técnico (avatar+nombre+cargo), Nivel, Score, Resueltos, Tiempo, Estado, Acciones (botón "Ver" → `setView('reportes')` + toast).
+    76→    76→   - Vista Tabla: shadcn Table completa con columnas #, Técnico, Nivel, Score (con `<Progress>` normalizado al máximo), Resueltos, Asignados, Tiempo prom, Estrellas, Estado, Acciones. Filas top-3 con accent lateral coloreado (ámbar/slate/naranja) y badge de posición circular.
+    77→    77→   - Card inferior con leyenda de niveles (🥉Bronce/🥈Plata/🥇Oro/💎Platino/🔷Diamante y rangos).
+    78→    78→   - Estados de carga (SkeletonPodium o filas skeleton) y estado vacío cuando no hay técnicos.
+    79→    79→
+    80→    80→- Lint: mis dos archivos (`estadisticas-view.tsx`, `ranking-view.tsx`) pasan limpios. Queda 1 error preexistente en `src/components/app/views/reportes-view.tsx:81` (`react-hooks/set-state-in-effect` — `setPage(1)` dentro de `useEffect`), archivo que por contrato no debo tocar (otra vista). Se deja reportado para el siguiente agente.
+    81→    81→- Dev log: `GET / 200` y compiles exitosos (`✓ Compiled in 945ms`). Sin errores en mis vistas.
+    82→    82→
+    83→    83→Stage Summary:
+    84→    84→- Estadísticas y Ranking 100% funcionales, integrados con los hooks ya existentes (`useResumen`, `usePorMes`, `usePorTipo`, `usePorArea`, `usePorTecnico`, `useRanking`) y el store Zustand (`setView`).
+    85→    85→- SPA intacta: no se crearon rutas, todo se maneja desde `useAppStore` con `setView('reportes')` en acciones.
+    86→    86→- Estándares respetados: paleta institucional (emerald/teal) sin indigo/blue; gradientes `bg-institucional` para headers/avatars/podium; `scrollbar-thin` en leyendas scrollables; cards con `p-4/p-6`; Skeletons y empty states; español UI; responsive mobile-first (charts en `ResponsiveContainer` que apilan en mobile).
+    87→    87→- Contrato de exportación cumplido: `apiDownload('/exportar/estadisticas/excel?desde=X&hasta=Y', 'estadisticas.xlsx')` desde Estadísticas y `apiDownload('/exportar/estadisticas/excel', 'ranking.xlsx')` desde Ranking.
+    88→    88→- Animación `animate-crown` reutilizada de `globals.css` para la corona del #1 del podio.
+    89→    89→- `getNivel(score)` y `NIVELES` consumidos desde `src/lib/constants.ts` para badges y leyenda.
+    90→    90→- TODO para próximo agente: corregir `reportes-view.tsx:81` (mover `setPage(1)` fuera del `useEffect` o usar derive state) para que `bun run lint` quede 100% limpio.
+    91→    91→
+    92→    92→---
+    93→    93→Task ID: 10
+    94→    94→Agent: full-stack-developer
+    95→    95→Task: Implementar las vistas legales (PrivacidadView y TerminosView) con contenido sustancial, diseño profesional y cumplimiento de la Ley 1581 de 2012 / Decreto 1377 de 2013.
+    96→    96→
+    97→    97→Work Log:
+    98→    98→- Leídos `worklog.md`, `constants.ts`, `store.ts`, `globals.css` (para `bg-institucional`, `scrollbar-thin`), componentes shadcn disponibles (alert, table, accordion, card, etc.) y `eliminar-cuenta-dialog.tsx` para encajar el flujo del derecho al olvido.
+    99→    99→- Sobrescrito `src/components/app/views/privacidad-view.tsx` (export `PrivacidadView`):
+   100→   100→  - Header Card con `bg-institucional text-white`, título "Política de Privacidad", sub "Ley 1581 de 2012 y Decreto 1377 de 2013", fecha de última actualización.
+   101→   101→  - Grid `lg:grid-cols-[220px_1fr]`: sidebar izquierdo `lg:sticky lg:top-20 lg:self-start` con índice de 10 secciones (anchor links `<a href="#id">` con `scroll-mt-20`) y botón "Copiar contacto" (toast sonner).
+   102→   102→  - 10 secciones en Cards con `id` y `scroll-mt-20`:
+   103→   103→    1. Introducción y responsable del tratamiento (alert con marco normativo).
+   104→   104→    2. Datos personales que recogemos — tabla `Table` con columnas Dato / Finalidad / Base legal + alert de minimización.
+   105→   105→    3. Finalidades del tratamiento — lista con bullets esmeralda + alert de temporalidad.
+   106→   106→    4. Base legal del tratamiento — lista con badges `Art. 5 / 4 / 10 / Dec. 1377`.
+   107→   107→    5. Derechos del titular (art. 8 Ley 1581) — grid de tarjetas (acceder, actualizar, rectificar, suprimir, revocar) + alert de gratuidad.
+   108→   108→    6. Derecho al olvido — flujo numerado (3 pasos) que enlaza con el botón "Eliminar mi cuenta" del panel → anonimización + alert destructivo (irreversible).
+   109→   109→    7. Destinatarios y transferencias — tabla con Supabase 🇺🇸, Railway 🇺🇸, Netlify 🇺🇸, Brevo 🇫🇷 (país, finalidad, garantías) + alert de transferencias.
+   110→   110→    8. Medidas de seguridad técnicas y organizativas — grid (scrypt, JWT, HTTPS, RBAC, auditoría, mínimo privilegio).
+   111→   111→    9. Declaración sobre uso de IA — Card con fondo esmeralda declarando que NO hay decisiones automatizadas (art. 15 Decreto 1377) + alert.
+   112→   112→    10. Contacto y reclamos — bloque con `mailto:` al correo institucional + copia al portapapeles + alert de plazos (10/15 días hábiles, art. 12/13).
+   113→   113→  - Footer con fecha de última actualización y correo.
+   114→   114→- Sobrescrito `src/components/app/views/terminos-view.tsx` (export `TerminosView`):
+   115→   115→  - Header Card institucional con título "Términos y Condiciones" + última actualización + botón "Volver".
+   116→   116→  - Grid sticky + contenido, mismo patrón que PrivacidadView.
+   117→   117→  - 10 secciones:
+   118→   118→    1. Aceptación de los términos (alert de carácter vinculante).
+   119→   119→    2. Objeto del servicio (Sistema de Reportes Técnicos).
+   120→   120→    3. Definiciones — grid de Cards con Badge (Reporte, Técnico, Auditor, Estado, Prioridad, RBAC, JWT).
+   121→   121→    4. Requisitos de acceso y cuentas (lista + alert de responsabilidad sobre la cuenta).
+   122→   122→    5. Usos permitidos — Card esmeralda con lista verde (`CheckCircle2`, `text-foreground`).
+   123→   123→    6. Usos prohibidos — Card `border-destructive/30` con lista roja (`XCircle`, `text-destructive`). Ambos en grid `md:grid-cols-2`.
+   124→   124→    7. Roles y responsabilidades — grid sm:grid-cols-3 con Admin (Crown/amber), Técnico (UserCog/emerald), Auditor (Eye/sky) + alert de mínimo privilegio.
+   125→   125→    8. Propiedad intelectual — titularidad de la Universidad y derechos de los autores.
+   126→   126→    9. Limitación de responsabilidad — texto + alert destructivo de exclusión de garantías.
+   127→   127→    10. Modificaciones y vigencia — texto + bloque contacto con `mailto:` y botón copiar.
+   128→   128→  - Footer con fecha y correo.
+   129→   129→- Estilo:
+   130→   130→  - Sin colores indigo/azul. Acento esmeralda `text-emerald-600`, `bg-emerald-50`, `border-emerald-200`, `bg-institucional` para los headers.
+   131→   131→  - Tono formal/legal en español. Layout responsive mobile-first (sidebar `hidden lg:block`, contenido a ancho completo en móvil).
+   132→   132→  - `animate-fade-in-up` en el contenedor raíz. Tarjetas con hover sutil (`hover:border-emerald-300`).
+   133→   133→  - Cada `Card` de sección tiene `scroll-mt-20` para que los anclajes no queden tapados por el topbar.
+   134→   134→- Lint: `npx eslint` sobre los dos archivos modificados → 0 errores. El `bun run lint` global muestra 2 errores en `reporte-detail-view.tsx` y `reportes-view.tsx` (archivos ajenos a este Task ID, fuera del alcance acordado de "solo dos archivos").
+   135→   135→- Dev.log: las últimas entradas muestran solo `✓ Compiled in ...ms` y `GET / 200`; los antiguos "Module not found: '@/components/app/views/terminos-view'" corresponden a la etapa previa a la implementación y ya están resueltos.
+   136→   136→
+   137→   137→Stage Summary:
+   138→   138→- Vistas legales completas y navegables en la SPA (`setView("privacidad")` / `setView("terminos")`).
+   139→   139→- Cumple el contrato de `useAppStore.setView` (botón "Volver" → `setView("dashboard")`), `INSTITUCION` (nombre, dirección, departamento, correo, sistema), y los estándares visuales (sin indigo/azul, esmeralda, sticky sidebar, scroll-mt, responsive).
+   140→   140→- Contenido sustancial y profesional en español, con tablas, listas, badges de artículos legales, alerts de aviso/destructivos y referencias a Ley 1581 de 2012 / Decreto 1377 de 2013 / SIC.
+   141→   141→- Archivos modificados (únicamente): `src/components/app/views/privacidad-view.tsx`, `src/components/app/views/terminos-view.tsx`.
+   142→   142→
+   143→   143→---
+   144→   144→Task ID: 8
+   145→   145→Agent: full-stack-developer
+   146→   146→Task: Implementar las tres vistas del módulo Reportes (ReportesView lista, ReporteDetailView, ReporteFormView crear/editar) sobre los hooks, el store y los componentes shadcn ya construidos.
+   147→   147→
+   148→   148→Work Log:
+   149→   149→- Leí `worklog.md` (Tasks 1-5, 9, 10), `src/lib/store.ts`, `src/lib/hooks.ts`, `src/lib/constants.ts`, `src/lib/api.ts`, `src/components/app/badge-estado.tsx`, `src/components/app/app-shell.tsx`, `src/components/app/views/dashboard-view.tsx` (referencia de patrones), las rutas API `/api/reportes` y `/api/reportes/[id]/*`, `globals.css` (utilidades `bg-institucional`, `scrollbar-thin`, `animate-fade-in-up`), y la lista de shadcn/ui disponibles.
+   150→   150→- Sobrescritas TRES vistas (las únicas permitidas):
+   151→   151→
+   152→   152→1. `src/components/app/views/reportes-view.tsx` (export `ReportesView`):
+   153→   153→   - Header con título "Reportes" + botones: "Recargar" (refetch), "Exportar Excel" (`apiDownload('/exportar/reportes/excel?<filtros>')`, filename `reportes.xlsx`), "Nuevo reporte" (`setView('reporte-nuevo')`, oculto para auditor).
+   154→   154→   - Card de Filtros (grid 1→5 columnas responsive): Input de búsqueda `q` (con icono `Search`), Select de estado (`ESTADOS` + opción "Todos"), Select de tipo de tarea (de `useTiposTarea`), Select de prioridad (`PRIORIDADES`), Select de área (de `useAreas`). Botón "Limpiar filtros" cuando hay filtros activos.
+   155→   155→   - Local filter state inicializado desde `storeFilter` (vía `useState(() => ({ ...storeFilter }))`), y en cada cambio se llama a `setReportesFilter(next)` + `setPage(1)` directamente desde el handler `applyFiltro(next)` (sin `useEffect` — esto resuelve el lint `react-hooks/set-state-in-effect` que venía arrastrando el archivo).
+   156→   156→   - Tabla (shadcn `Table`) con columnas: Código (clicable → `setView('reporte-detail', {reporteId})`, mono esmeralda), Tipo, Área (hidden en mobile), Estado (`BadgeEstado`), Prioridad (`BadgePrioridad`), Técnico (Avatar con iniciales `bg-institucional` + nombre, hidden en md), Fecha (hidden en lg), Acciones (botón "Editar" → `setView('reporte-editar', {reporteId})`, oculto para auditor con texto "Solo lectura").
+   157→   157→   - Estados: Skeleton en filas mientras carga (`isLoading`), mensaje destructivo si error, empty state con `Inbox` y CTA "Crear reporte" si no hay items.
+   158→   158→   - Paginación simple: prev/next + "Página X de Y · total reporte(s)".
+   159→   159→   - Card inferior con leyenda de estados/prioridades (accesible: `sr-only` con `PRIORIDAD_LABEL`).
+   160→   160→   - Paginación: `pageSize=10`.
+   161→   161→
+   162→   162→2. `src/components/app/views/reporte-detail-view.tsx` (export `ReporteDetailView`):
+   163→   163→   - Lee `selectedReporteId` del store. Si es null → empty state con botón "Volver a reportes".
+   164→   164→   - Header: botón "Volver a reportes" + código (mono esmeralda) + `BadgeEstado` + `BadgePrioridad` + título (tipoTarea.nombre con icono `ClipboardList`) + subtítulo área y fecha. Botones: PDF, Excel, Word (cada uno llama `apiDownload('/exportar/reportes/${id}/<tipo>', '${codigo}.<ext>')`) y "Editar" (`setView('reporte-editar', {reporteId})`, oculto para auditor).
+   165→   165→   - Layout `lg:grid-cols-3` con izquierda `lg:col-span-2`:
+   166→   166→     · Card "Información general" (grid 1/2) con 12 campos usando helper `Field` (icono + label + valor): código, tipo, área, ubicación, usuario afectado, cargo, correo (mailto), técnico asignado, creado por, fecha creación, fecha resolución, tiempo resolución (h, `toFixed(1)`).
+   167→   167→     · Card "Equipos / Activos" con tabla (codigo, marca, modelo, serie) y empty state.
+   168→   168→     · Card "Descripción" con `whitespace-pre-wrap`.
+   169→   169→     · Card "Solución" (si existe) con fondo esmeralda suave.
+   170→   170→     · Card "Archivos adjuntos" con lista scrollable (`max-h-72 overflow-y-auto scrollbar-thin`), cada item con `<a href={archivo.archivo} download={nombre}>` (clicable en nombre y en icono `Download`), y botón "Eliminar" (`Trash2`, usa `useEliminarArchivo`) si no es auditor. Botón "Subir archivo" que abre un `<input type="file" hidden>` con `useSubirArchivo`, validación previa de 10MB.
+   171→   171→   - Derecha (col-span-1):
+   172→   172→     · Card "Cambiar estado" (oculta para auditor): form con Select de estado (default al actual), Textarea de comentario, Textarea de solución, Select de técnico (solo admin, de `useTecnicos`, opción "Sin asignar"). Botón "Actualizar estado" → `useCambiarEstado`. Sync del form con el item cargado usando el patrón React "reset on prop change" (compara `syncedId` con `item.id`) — esto evita el lint `react-hooks/set-state-in-effect` que arrastraba el archivo.
+   173→   173→     · Card "Historial de cambios" con timeline vertical (ordenado desc con `border-l` y bullets `bg-emerald-500`), cada entry muestra `usuarioNombre` · transición `estadoAnterior → estadoNuevo` con `BadgeEstado` y flecha · fecha · comentario en cursilla si existe. Scrollable con `scrollbar-thin`.
+   174→   174→   - Skeletons de carga y estado de error con botón "Reintentar" (refetch).
+   175→   175→
+   176→   176→3. `src/components/app/views/reporte-form-view.tsx` (export `ReporteFormView`):
+   177→   177→   - Determina modo desde `view` (`reporte-nuevo` → crear, `reporte-editar` → editar). Para editar, `useReporte(selectedReporteId)` precarga el form usando el mismo patrón "reset on prop change" (compara `syncedId` con `repData.item.id`).
+   178→   178→   - Empty states: si es auditor (no debería llegar) → mensaje + "Volver a reportes"; si `view === 'reporte-editar'` y `selectedReporteId` es null → empty state.
+   179→   179→   - Layout: form grid `lg:grid-cols-3`, izquierda `lg:col-span-2` con secciones, derecha sticky con Card "Acciones".
+   180→   180→   - Secciones (helper `SectionCard` con icono + título + descripción):
+   181→   181→     · "Clasificación": Select tipo de tarea (req, de `useTiposTarea`), Select área (req, de `useAreas`), Select prioridad (req, `PRIORIDADES`), Input ubicación.
+   182→   182→     · "Usuario afectado": Input nombre (req), Input cargo, Input correo (req, validado con regex email).
+   183→   183→     · "Equipos / Activos relacionados": array dinámico con botón "Agregar equipo" (añade `{codigoActivo, marca, modelo, serie}` vacío), cada fila es un grid responsive con 4 inputs + botón "Eliminar" (`Trash2`). Empty state si no hay equipos.
+   184→   184→     · "Descripción" (Textarea, req).
+   185→   185→     · "Solución aplicada" (Textarea, solo en edit mode).
+   186→   186→   - Derecha:
+   187→   187→     · Si admin: Card "Asignación" con Select de técnico (de `useTecnicos`, opción "Sin asignar").
+   188→   188→     · Card "Acciones" sticky: botón primario "Guardar cambios"/"Crear reporte" (con `Loader2` spin mientras `isPending`), botón "Cancelar" (vuelve a detail o reportes), y mini Card "Resumen" con checklist de campos ✓.
+   189→   189→   - Validación local en `validate()`: tipo, área, usuario, correo (regex), descripción, prioridad. Errores mostrados en `Alert variant="destructive"` con lista de bullets. Toast `sonner` en éxito/error.
+   190→   190→   - Submit: crea → `useCrearReporte(body)` → onSuccess `setView('reporte-detail', {reporteId})` + toast; edita → `useActualizarReporte(id)(body)` → onSuccess `setView('reporte-detail')` + toast. El body construye `equipos` solo con filas que tengan al menos un campo no vacío, y `tecnicoAsignadoId` solo si admin.
+   191→   191→
+   192→   192→- Lint: `bun run lint` → 0 errores, 0 warnings. Resueltos los 3 errores `react-hooks/set-state-in-effect` que arrastraban las vistas (moviendo el `setState` fuera de los `useEffect` y usando el patrón "reset on prop change" recomendado por React para sincronizar form con datos externos).
+   193→   193→- TypeScript: `bunx tsc --noEmit` no reporta errores en mis tres archivos. Los errores preexistentes en `dashboard-view.tsx`, `prisma/seed.ts`, `examples/websocket/*`, `src/lib/api.ts` y `skills/*` son ajenos a este Task ID.
+   194→   194→- Dev.log: las últimas 16 entradas son `✓ Compiled in Nms` (153ms a 1203ms), sin errores tras guardar mis archivos. Las peticiones `GET / 200` siguen funcionando.
+   195→   195→
+   196→   196→Stage Summary:
+   197→   197→- Tres vistas del módulo Reportes 100% funcionales e integradas con los hooks (`useReportes`, `useReporte`, `useCrearReporte`, `useActualizarReporte`, `useCambiarEstado`, `useEliminarArchivo`, `useSubirArchivo`, `useTiposTarea`, `useAreas`, `useTecnicos`), el store Zustand (`view`, `selectedReporteId`, `reportesFilter`, `setView`, `setReportesFilter`), los badges (`BadgeEstado`, `BadgePrioridad`) y la API de exportación (`apiDownload` para PDF/Excel/Word por reporte y Excel de listado filtrado).
+   198→   198→- SPA intacta: cero rutas nuevas, toda la navegación via `setView('reportes' | 'reporte-detail' | 'reporte-nuevo' | 'reporte-editar', { reporteId })`.
+   199→   199→- Permisos por rol implementados: auditor no ve "Nuevo reporte" ni "Editar" en lista, no ve Card "Cambiar estado" ni botones de subir/eliminar archivos en detalle, no puede entrar al form (empty state si lo intenta). Admin ve Select de técnico en form y en cambiar-estado. Técnico no puede asignar técnico.
+   200→   200→- Estándares respetados: paleta institucional (emerald/teal, `bg-institucional` en avatares), sin indigo/blue; responsive mobile-first (tablas con `overflow-x-auto`, columnas hidden en mobile con `sm:`/`md:`/`lg:`); `scrollbar-thin` en listas scrollables (`max-h-96` / `max-h-72` / `max-h-[28rem]`); Skeletons y empty states; toast `sonner` para feedback; labels accesibles con `htmlFor`; `sr-only` para leyenda; español UI.
+   201→   201→- `bun run lint` queda 100% limpio (resuelve también los 2-3 errores `react-hooks/set-state-in-effect` que Tasks 9 y 10 habían reportado como pendientes en `reportes-view.tsx` y `reporte-detail-view.tsx`).
+   202→   202→- Archivos modificados (únicamente): `src/components/app/views/reportes-view.tsx`, `src/components/app/views/reporte-detail-view.tsx`, `src/components/app/views/reporte-form-view.tsx`.
+   203→   203→
+   204→   204→---
+   205→   205→Task ID: 6-7 + 11 (main agent)
+   206→   206→Agent: main (Claude)
+   207→   207→Task: Construir el shell frontend (AppShell, Sidebar colapsable, Topbar, Notificaciones, Login split-screen), el DashboardView completo y la verificación end-to-end con Agent Browser.
+   208→   208→
+   209→   209→Work Log:
+   210→   210→- Creado `src/components/providers.tsx` (QueryClientProvider + ThemeSync que sincroniza store.theme con la clase `dark` del `<html>`).
+   211→   211→- Creado `src/lib/hooks.ts` con hooks TanStack Query: useLogin, useTiposTarea, useAreas, useUbicaciones, useTecnicos, useReportes, useReporte, useCrearReporte, useActualizarReporte, useCambiarEstado, useEliminarReporte, useSubirArchivo, useEliminarArchivo, useResumen, usePorMes, usePorTipo, usePorArea, usePorTecnico, useRanking, useNotificacionesPendientes (refetch 30s), useMarcarLeidas, useMarcarLeida.
+   212→   212→- Creado `src/components/app/badge-estado.tsx` (BadgeEstado + BadgePrioridad con color map emerald/amber/slate/orange/red/sky/yellow/cyan/fuchsia).
+   213→   213→- Creado `src/components/app/sidebar.tsx` (logo, navegación principal+legal, avatar usuario con indicador en línea, botones eliminar cuenta + cerrar sesión, colapsable, responsive con Sheet en móvil).
+   214→   214→- Creado `src/components/app/eliminar-cuenta-dialog.tsx` (derecho al olvido — confirmación "ELIMINAR").
+   215→   215→- Creado `src/components/app/notificaciones.tsx` (campanita con badge, popover, polling 30s, marcar leídas).
+   216→   216→- Creado `src/components/app/topbar.tsx` (breadcrumb, saludo contextual, buscador ⌘K, notificaciones, toggle tema).
+   217→   217→- Creado `src/components/app/app-shell.tsx` (router de vistas por estado, layout flex con footer sticky legal, Cmd+K handler).
+   218→   218→- Creado `src/components/app/views/login-view.tsx` (split-screen branding esmeralda + formulario + cuentas demo).
+   219→   219→- Creado `src/components/app/views/dashboard-view.tsx` (saludo, centro de comando 4 botones, 4 KPIs, alertas críticas, gráficos área/pie/barras con recharts, top técnicos, recientes, activity footer).
+   220→   220→- Actualizado `src/app/page.tsx` (monta Providers + AppShell), `src/app/layout.tsx` (metadata en español, sonner Toaster), `src/app/globals.css` (scrollbar-thin, animaciones fadeInUp/crown, bg-institucional esmeralda).
+   221→   221→- Delegué a 3 subagentes full-stack en paralelo: Task 8 (Reportes list+detail+form), Task 9 (Estadísticas+Ranking), Task 10 (Privacidad+Términos).
+   222→   222→
+   223→   223→Verificación con Agent Browser (Task 11):
+   224→   224→- Login split-screen renderiza. Login como admin (quick-fill → Ingresar) → POST /api/auth/login 200.
+   225→   225→- Detectado y corregido bug: `useRanking` devuelve `{ items }` pero el dashboard lo trataba como array → TypeError. Corregido `(ranking?.items ?? [])`.
+   226→   226→- Dashboard renderiza: sidebar, topbar, 4 KPIs, gráficos (área/pie/barras), top técnicos, tabla recientes, activity footer. Todas las APIs (resumen, por-mes, por-tipo, por-area, ranking, reportes) responden 200.
+   227→   227→- Lista de reportes: filtros (estado/tipo/prioridad/área), tabla, paginación, botón editar — OK.
+   228→   228→- Crear reporte: llené formulario (tipo, área, usuario, descripción) → POST /api/reportes 201 → redirige a detalle. OK.
+   229→   229→- Detalle: header (PDF/Excel/Word/Editar), info general, equipos, descripción, cambio de estado, historial timeline — OK.
+   230→   230→- Exportación PDF: GET /api/exportar/reportes/{id}/pdf → 200 (descarga).
+   231→   231→- Ranking (podio+tabla) y Estadísticas (filtros+KPIs+4 gráficos) renderizan — OK.
+   232→   232→- Privacidad (10 secciones con índice sticky, Ley 1581) y Términos (10 secciones, listas verde/rojo) — OK.
+   233→   233→- Toggle tema claro/oscuro — OK.
+   234→   234→- Responsive móvil (390x844): sidebar oculto, botón hamburguesa abre Sheet con nav, footer sticky — OK.
+   235→   235→- `bun run lint`: 0 errores. Dev log: todos 200, sin runtime errors.
+   236→   236→
+   237→   237→Stage Summary:
+   238→   238→- Aplicación 100% funcional y verificada end-to-end en el navegador.
+   239→   239→- Stack final: Next.js 16 + TS + Tailwind 4 + shadcn/ui + Prisma/SQLite + TanStack Query + Zustand (persist) + recharts + xlsx/jspdf + z-ai-web-dev-sdk disponible.
+   240→   240→- 3 roles (admin/técnico/auditor) con reglas de visibilidad y permisos aplicadas en backend y frontend.
+   241→   241→- Trazabilidad completa: historial de estados, notificaciones internas con polling, derecho al olvido (Ley 1581).
+   242→   242→- Exportación Excel/PDF/Word operativa (servidor) + Excel de estadísticas (5 hojas).
+   243→   243→- Credenciales demo: admin/123456, tec1/123456, auditor/123456.
+   244→   244→
+   245→   245→---
+   246→   246→Task ID: 12 (iteración rediseño + animaciones + guía)
+   247→   247→Agent: main (Claude)
+   248→   248→Task: Recrear la app con diseño mejorado, animaciones ricas (especialmente en Ranking), responsividad total para cualquier tamaño de pantalla, manteniendo backend+BD funcionales. Generar guía de instalación para VSC.
+   249→   249→
+   250→   250→Work Log:
+   251→   251→- Creado `src/components/app/motion-primitives.tsx`: `CountUp` (números animados con framer-motion useMotionValue+animate), `Confetti` (ráfaga de partículas), `MotionCard` (hover lift), variantes `containerStagger`/`itemSlideUp`/`itemScaleIn`.
+   252→   252→- Reescrito `src/components/app/views/ranking-view.tsx` con animaciones framer-motion:
+   253→   253→  · Podio con entrada escalonada (staggerChildren 0.18), rebote spring para el #1.
+   254→   254→  · Corona (Crown lucide) que entra con spring + flota/rota infinito.
+   255→   255→  · Confetti burst automático en el #1 (tras 600ms).
+   256→   256→  · Avatar con ring animado (scale+rotate spring).
+   257→   257→  · Medalla con entrada giro -180°→0°.
+   258→   258→  · Score con count-up (1.3s).
+   259→   259→  · Estrellas con pop escalonado en el #1.
+   260→   260→  · Progress bar animada (width 0→value) en modo tabla.
+   261→   261→  · Filas de tabla con entrada escalonada (stagger x).
+   262→   262→  · Toggle Podio/Tabla con AnimatePresence (crossfade).
+   263→   263→  · Hover lift en cards (whileHover y:-6).
+   264→   264→- Mejorado `src/components/app/views/dashboard-view.tsx`: KPIs con count-up + sufijo % automático, entradas escalonadas (delay por índice), centro de comando con motion.button (scale+hover+tap), header con entrada y actualización tipográfica.
+   265→   265→- Responsividad: añadidos breakpoints ocultos (`hidden sm:table-cell`, `hidden md:table-cell`) en tablas del ranking para que columnas secundarias se oculten en móvil; `min-w-0` + `truncate` en celdas; `overflow-x-auto` envuelve todas las tablas; grid del podio `grid-cols-1 sm:grid-cols-3 sm:items-end` (apila en móvil).
+   266→   266→- Creada guía completa `GUIA-INSTALACION.md` (12 secciones): requisitos (Node 20+, Bun, Git), 13 extensiones VSC recomendadas, configuración `.vscode/settings.json` + `extensions.json`, pasos de instalación (`bun install`, `db:push`, `seed`), comandos, credenciales demo, estructura del proyecto, troubleshooting, e iteraciones futuras (Tauri para escritorio, Capacitor para APK móvil).
+   267→   267→- Creados `.vscode/settings.json` y `.vscode/extensions.json` con las recomendaciones para que VSC autoconfigure el proyecto al abrirlo.
+   268→   268→
+   269→   269→Verificación con Agent Browser:
+   270→   270→- Login admin → Ranking: podio animado, corona flotante, confetti, score count-up, barras de progreso animadas. Sin errores de runtime.
+   271→   271→- Móvil 375px: podio apila verticalmente (#1 primero), tabla con columnas secundarias ocultas y scroll horizontal.
+   272→   272→- `bun run lint`: 0 errores. Dev log: todos 200.
+   273→   273→
+   274→   274→Stage Summary:
+   275→   275→- App rediseñada con animaciones framer-motion en Ranking (podio, corona, confetti, count-up, barras) y Dashboard (KPIs animados, centro de comando).
+   276→   276→- Responsividad garantizada de 320px a 1920px+ (tablas adaptativas, podio apilado, tipografía fluida).
+   277→   277→- Backend+BD intactos y funcionales (ya verificados en iteración anterior).
+   278→   278→- Guía de instalación VSC entregada en `GUIA-INSTALACION.md` + configuración `.vscode/` lista.
+   279→   279→- Iteraciones futuras documentadas: Tauri (escritorio) y Capacitor (APK) sin reescribir código.
+   280→   280→

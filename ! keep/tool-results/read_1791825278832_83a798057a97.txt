@@ -1,0 +1,678 @@
+     1→"use client"
+     2→
+     3→import { useRef, useState } from "react"
+     4→import { useAppStore } from "@/lib/store"
+     5→import {
+     6→  useReporte,
+     7→  useCambiarEstado,
+     8→  useEliminarArchivo,
+     9→  useSubirArchivo,
+    10→  useTecnicos,
+    11→} from "@/lib/hooks"
+    12→import { apiDownload } from "@/lib/api"
+    13→import { ESTADOS, ESTADO_LABEL } from "@/lib/constants"
+    14→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+    15→import { Button } from "@/components/ui/button"
+    16→import { Skeleton } from "@/components/ui/skeleton"
+    17→import { Textarea } from "@/components/ui/textarea"
+    18→import { Label } from "@/components/ui/label"
+    19→import {
+    20→  Select,
+    21→  SelectContent,
+    22→  SelectItem,
+    23→  SelectTrigger,
+    24→  SelectValue,
+    25→} from "@/components/ui/select"
+    26→import { BadgeEstado, BadgePrioridad } from "@/components/app/badge-estado"
+    27→import { toast } from "sonner"
+    28→import {
+    29→  ArrowLeft, FileText, FileSpreadsheet, FileType, Pencil, Upload, Trash2,
+    30→  Download, Paperclip, ClipboardList, User, Mail, Briefcase, MapPin,
+    31→  Wrench, Calendar, Clock, CheckCircle2, History, MessageSquare, UserCog,
+    32→  Tag, Inbox, FileBox,
+    33→} from "lucide-react"
+    34→
+    35→function fmtFecha(s?: string | null) {
+    36→  if (!s) return "—"
+    37→  try {
+    38→    return new Date(s).toLocaleString("es-ES", {
+    39→      day: "2-digit",
+    40→      month: "short",
+    41→      year: "numeric",
+    42→      hour: "2-digit",
+    43→      minute: "2-digit",
+    44→    })
+    45→  } catch {
+    46→    return "—"
+    47→  }
+    48→}
+    49→
+    50→function Field({
+    51→  icon: Icon,
+    52→  label,
+    53→  value,
+    54→  mono = false,
+    55→}: {
+    56→  icon: React.ComponentType<{ className?: string }>
+    57→  label: string
+    58→  value: React.ReactNode
+    59→  mono?: boolean
+    60→}) {
+    61→  return (
+    62→    <div className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3">
+    63→      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-background text-emerald-600 ring-1 ring-border">
+    64→        <Icon className="h-3.5 w-3.5" />
+    65→      </div>
+    66→      <div className="min-w-0 flex-1">
+    67→        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+    68→          {label}
+    69→        </p>
+    70→        <p className={`mt-0.5 text-sm ${mono ? "font-mono" : ""}`}>
+    71→          {value ?? <span className="text-muted-foreground">—</span>}
+    72→        </p>
+    73→      </div>
+    74→    </div>
+    75→  )
+    76→}
+    77→
+    78→export function ReporteDetailView() {
+    79→  const user = useAppStore((s) => s.user)
+    80→  const setView = useAppStore((s) => s.setView)
+    81→  const id = useAppStore((s) => s.selectedReporteId)
+    82→
+    83→  const isAuditor = user?.role === "auditor"
+    84→
+    85→  const { data, isLoading, isError, error, refetch } = useReporte(id)
+    86→  const item = data?.item
+    87→
+    88→  const cambiarEstado = useCambiarEstado(id ?? "")
+    89→  const eliminarArchivo = useEliminarArchivo(id ?? "")
+    90→  const subirArchivo = useSubirArchivo(id ?? "")
+    91→  const { data: tecnicos } = useTecnicos()
+    92→
+    93→  const [estadoForm, setEstadoForm] = useState({
+    94→    estado: "",
+    95→    comentario: "",
+    96→    solucion: "",
+    97→    tecnicoAsignadoId: "",
+    98→  })
+    99→
+   100→  // Sincronizar el form con el reporte cargado (patrón "reset on prop change" recomendado por React)
+   101→  const [syncedId, setSyncedId] = useState<string | null>(null)
+   102→  const itemId = item?.id ?? null
+   103→  if (item && itemId !== syncedId) {
+   104→    setSyncedId(itemId)
+   105→    setEstadoForm({
+   106→      estado: item.estado,
+   107→      comentario: "",
+   108→      solucion: item.solucion ?? "",
+   109→      tecnicoAsignadoId: item.tecnicoAsignadoId ?? "",
+   110→    })
+   111→  }
+   112→
+   113→  const fileInputRef = useRef<HTMLInputElement>(null)
+   114→
+   115→  // Estado vacío
+   116→  if (!id) {
+   117→    return (
+   118→      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+   119→        <Inbox className="h-10 w-10" />
+   120→        <p className="text-sm">No hay reporte seleccionado.</p>
+   121→        <Button variant="outline" size="sm" onClick={() => setView("reportes")} className="gap-2">
+   122→          <ArrowLeft className="h-4 w-4" /> Volver a reportes
+   123→        </Button>
+   124→      </div>
+   125→    )
+   126→  }
+   127→
+   128→  if (isLoading) {
+   129→    return (
+   130→      <div className="space-y-4">
+   131→        <Skeleton className="h-12 w-full" />
+   132→        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+   133→          <div className="space-y-4 lg:col-span-2">
+   134→            <Skeleton className="h-64 w-full" />
+   135→            <Skeleton className="h-32 w-full" />
+   136→          </div>
+   137→          <Skeleton className="h-64 w-full" />
+   138→        </div>
+   139→      </div>
+   140→    )
+   141→  }
+   142→
+   143→  if (isError || !item) {
+   144→    return (
+   145→      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+   146→        <Inbox className="h-10 w-10" />
+   147→        <p className="text-sm">{(error as Error)?.message || "No se pudo cargar el reporte"}</p>
+   148→        <div className="flex gap-2">
+   149→          <Button variant="outline" size="sm" onClick={() => setView("reportes")} className="gap-2">
+   150→            <ArrowLeft className="h-4 w-4" /> Volver
+   151→          </Button>
+   152→          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+   153→            Reintentar
+   154→          </Button>
+   155→        </div>
+   156→      </div>
+   157→    )
+   158→  }
+   159→
+   160→  const exportar = async (tipo: "pdf" | "excel" | "word") => {
+   161→    const filename = `${item.codigo}.${tipo === "excel" ? "xlsx" : tipo}`
+   162→    try {
+   163→      await apiDownload(`/exportar/reportes/${item.id}/${tipo}`, filename)
+   164→      toast.success(`${tipo.toUpperCase()} exportado`)
+   165→    } catch (e) {
+   166→      toast.error((e as Error).message || "Error al exportar")
+   167→    }
+   168→  }
+   169→
+   170→  const submitEstado = (e: React.FormEvent) => {
+   171→    e.preventDefault()
+   172→    if (!estadoForm.estado) {
+   173→      toast.error("Selecciona un estado")
+   174→      return
+   175→    }
+   176→    cambiarEstado.mutate(
+   177→      {
+   178→        estado: estadoForm.estado,
+   179→        comentario: estadoForm.comentario || undefined,
+   180→        solucion: estadoForm.solucion || undefined,
+   181→        tecnicoAsignadoId:
+   182→          user?.role === "admin"
+   183→            ? estadoForm.tecnicoAsignadoId || null
+   184→            : undefined,
+   185→      },
+   186→      {
+   187→        onSuccess: () => {
+   188→          toast.success("Estado actualizado correctamente")
+   189→          setEstadoForm((s) => ({ ...s, comentario: "" }))
+   190→        },
+   191→        onError: (err: unknown) =>
+   192→          toast.error((err as Error).message || "Error al cambiar estado"),
+   193→      }
+   194→    )
+   195→  }
+   196→
+   197→  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+   198→    const file = e.target.files?.[0]
+   199→    if (!file) return
+   200→    if (file.size > 10 * 1024 * 1024) {
+   201→      toast.error("El archivo excede 10MB")
+   202→      return
+   203→    }
+   204→    subirArchivo.mutate(file, {
+   205→      onSuccess: () => toast.success("Archivo subido"),
+   206→      onError: (err: unknown) =>
+   207→        toast.error((err as Error).message || "Error al subir"),
+   208→    })
+   209→    // Limpiar input
+   210→    if (fileInputRef.current) fileInputRef.current.value = ""
+   211→  }
+   212→
+   213→  return (
+   214→    <div className="space-y-5">
+   215→      {/* Header */}
+   216→      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+   217→        <div className="min-w-0 flex-1">
+   218→          <Button
+   219→            variant="ghost"
+   220→            size="sm"
+   221→            onClick={() => setView("reportes")}
+   222→            className="-ml-2 mb-2 gap-1 text-muted-foreground"
+   223→          >
+   224→            <ArrowLeft className="h-4 w-4" /> Volver a reportes
+   225→          </Button>
+   226→          <div className="flex flex-wrap items-center gap-2">
+   227→            <span className="font-mono text-sm font-semibold text-emerald-600">
+   228→              {item.codigo}
+   229→            </span>
+   230→            <BadgeEstado estado={item.estado} />
+   231→            <BadgePrioridad prioridad={item.prioridad} />
+   232→          </div>
+   233→          <h1 className="mt-1 flex items-center gap-2 text-xl font-bold sm:text-2xl">
+   234→            <ClipboardList className="h-5 w-5 shrink-0 text-muted-foreground" />
+   235→            <span className="truncate">{item.tipoTarea?.nombre ?? "Reporte"}</span>
+   236→          </h1>
+   237→          <p className="mt-1 text-xs text-muted-foreground">
+   238→            {item.area?.nombre ?? "—"} · {fmtFecha(item.fechaCreacion)}
+   239→          </p>
+   240→        </div>
+   241→        <div className="flex flex-wrap items-center gap-2">
+   242→          <Button
+   243→            variant="outline"
+   244→            size="sm"
+   245→            onClick={() => exportar("pdf")}
+   246→            className="gap-2"
+   247→            title="Exportar a PDF"
+   248→          >
+   249→            <FileText className="h-4 w-4" /> PDF
+   250→          </Button>
+   251→          <Button
+   252→            variant="outline"
+   253→            size="sm"
+   254→            onClick={() => exportar("excel")}
+   255→            className="gap-2"
+   256→            title="Exportar a Excel"
+   257→          >
+   258→            <FileSpreadsheet className="h-4 w-4" /> Excel
+   259→          </Button>
+   260→          <Button
+   261→            variant="outline"
+   262→            size="sm"
+   263→            onClick={() => exportar("word")}
+   264→            className="gap-2"
+   265→            title="Exportar a Word"
+   266→          >
+   267→            <FileType className="h-4 w-4" /> Word
+   268→          </Button>
+   269→          {!isAuditor && (
+   270→            <Button
+   271→              size="sm"
+   272→              onClick={() => setView("reporte-editar", { reporteId: item.id })}
+   273→              className="gap-2"
+   274→            >
+   275→              <Pencil className="h-4 w-4" /> Editar
+   276→            </Button>
+   277→          )}
+   278→        </div>
+   279→      </div>
+   280→
+   281→      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+   282→        {/* LEFT */}
+   283→        <div className="space-y-4 lg:col-span-2">
+   284→          {/* Información general */}
+   285→          <Card>
+   286→            <CardHeader>
+   287→              <CardTitle className="flex items-center gap-2 text-base">
+   288→                <Tag className="h-4 w-4 text-muted-foreground" />
+   289→                Información general
+   290→              </CardTitle>
+   291→              <CardDescription>Datos del reporte y del usuario afectado</CardDescription>
+   292→            </CardHeader>
+   293→            <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+   294→              <Field icon={Tag} label="Código" value={item.codigo} mono />
+   295→              <Field icon={Wrench} label="Tipo de tarea" value={item.tipoTarea?.nombre} />
+   296→              <Field icon={Briefcase} label="Área" value={item.area?.nombre} />
+   297→              <Field icon={MapPin} label="Ubicación" value={item.ubicacion} />
+   298→              <Field icon={User} label="Usuario afectado" value={item.usuarioNombre} />
+   299→              <Field icon={Briefcase} label="Cargo del usuario" value={item.usuarioCargo} />
+   300→              <Field
+   301→                icon={Mail}
+   302→                label="Correo"
+   303→                value={
+   304→                  item.usuarioCorreo ? (
+   305→                    <a
+   306→                      href={`mailto:${item.usuarioCorreo}`}
+   307→                      className="text-emerald-600 hover:underline"
+   308→                    >
+   309→                      {item.usuarioCorreo}
+   310→                    </a>
+   311→                  ) : null
+   312→                }
+   313→              />
+   314→              <Field icon={UserCog} label="Técnico asignado" value={item.tecnicoNombre ?? "Sin asignar"} />
+   315→              <Field icon={User} label="Creado por" value={item.creadoPorNombre} />
+   316→              <Field icon={Calendar} label="Fecha de creación" value={fmtFecha(item.fechaCreacion)} />
+   317→              <Field
+   318→                icon={CheckCircle2}
+   319→                label="Fecha de resolución"
+   320→                value={fmtFecha(item.fechaResolucion)}
+   321→              />
+   322→              <Field
+   323→                icon={Clock}
+   324→                label="Tiempo de resolución"
+   325→                value={
+   326→                  item.tiempoResolucionHoras != null
+   327→                    ? `${item.tiempoResolucionHoras.toFixed(1)} h`
+   328→                    : "—"
+   329→                }
+   330→              />
+   331→            </CardContent>
+   332→          </Card>
+   333→
+   334→          {/* Equipos / activos */}
+   335→          <Card>
+   336→            <CardHeader>
+   337→              <CardTitle className="flex items-center gap-2 text-base">
+   338→                <FileBox className="h-4 w-4 text-muted-foreground" />
+   339→                Equipos / Activos
+   340→              </CardTitle>
+   341→              <CardDescription>
+   342→                {item.equipos.length} equipo(s) relacionado(s)
+   343→              </CardDescription>
+   344→            </CardHeader>
+   345→            <CardContent>
+   346→              {item.equipos.length === 0 ? (
+   347→                <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-6 text-center text-muted-foreground">
+   348→                  <FileBox className="h-6 w-6" />
+   349→                  <p className="text-xs">Sin equipos registrados</p>
+   350→                </div>
+   351→              ) : (
+   352→                <div className="overflow-x-auto">
+   353→                  <table className="w-full text-sm">
+   354→                    <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+   355→                      <tr>
+   356→                        <th className="px-3 py-2 font-medium">Código de activo</th>
+   357→                        <th className="px-3 py-2 font-medium">Marca</th>
+   358→                        <th className="px-3 py-2 font-medium">Modelo</th>
+   359→                        <th className="px-3 py-2 font-medium">Serie</th>
+   360→                      </tr>
+   361→                    </thead>
+   362→                    <tbody className="divide-y">
+   363→                      {item.equipos.map((eq) => (
+   364→                        <tr key={eq.id}>
+   365→                          <td className="px-3 py-2 font-mono text-xs">
+   366→                            {eq.codigoActivo || "—"}
+   367→                          </td>
+   368→                          <td className="px-3 py-2">{eq.marca || "—"}</td>
+   369→                          <td className="px-3 py-2">{eq.modelo || "—"}</td>
+   370→                          <td className="px-3 py-2 font-mono text-xs">
+   371→                            {eq.serie || "—"}
+   372→                          </td>
+   373→                        </tr>
+   374→                      ))}
+   375→                    </tbody>
+   376→                  </table>
+   377→                </div>
+   378→              )}
+   379→            </CardContent>
+   380→          </Card>
+   381→
+   382→          {/* Descripción */}
+   383→          <Card>
+   384→            <CardHeader>
+   385→              <CardTitle className="flex items-center gap-2 text-base">
+   386→                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+   387→                Descripción
+   388→              </CardTitle>
+   389→            </CardHeader>
+   390→            <CardContent>
+   391→              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+   392→                {item.descripcion}
+   393→              </p>
+   394→            </CardContent>
+   395→          </Card>
+   396→
+   397→          {/* Solución */}
+   398→          {item.solucion && (
+   399→            <Card className="border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-500/5">
+   400→              <CardHeader>
+   401→                <CardTitle className="flex items-center gap-2 text-base text-emerald-700 dark:text-emerald-300">
+   402→                  <CheckCircle2 className="h-4 w-4" />
+   403→                  Solución aplicada
+   404→                </CardTitle>
+   405→              </CardHeader>
+   406→              <CardContent>
+   407→                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+   408→                  {item.solucion}
+   409→                </p>
+   410→              </CardContent>
+   411→            </Card>
+   412→          )}
+   413→
+   414→          {/* Archivos adjuntos */}
+   415→          <Card>
+   416→            <CardHeader className="flex-row items-center justify-between space-y-0">
+   417→              <div>
+   418→                <CardTitle className="flex items-center gap-2 text-base">
+   419→                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+   420→                  Archivos adjuntos
+   421→                </CardTitle>
+   422→                <CardDescription>
+   423→                  {item.archivos.length} archivo(s)
+   424→                </CardDescription>
+   425→              </div>
+   426→              {!isAuditor && (
+   427→                <div>
+   428→                  <input
+   429→                    ref={fileInputRef}
+   430→                    type="file"
+   431→                    className="hidden"
+   432→                    onChange={handleFile}
+   433→                    aria-label="Subir archivo"
+   434→                  />
+   435→                  <Button
+   436→                    size="sm"
+   437→                    variant="outline"
+   438→                    className="gap-2"
+   439→                    onClick={() => fileInputRef.current?.click()}
+   440→                    disabled={subirArchivo.isPending}
+   441→                  >
+   442→                    <Upload className="h-4 w-4" />
+   443→                    {subirArchivo.isPending ? "Subiendo…" : "Subir archivo"}
+   444→                  </Button>
+   445→                </div>
+   446→              )}
+   447→            </CardHeader>
+   448→            <CardContent>
+   449→              {item.archivos.length === 0 ? (
+   450→                <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-6 text-center text-muted-foreground">
+   451→                  <Paperclip className="h-6 w-6" />
+   452→                  <p className="text-xs">Sin archivos adjuntos</p>
+   453→                </div>
+   454→              ) : (
+   455→                <ul className="max-h-72 divide-y overflow-y-auto scrollbar-thin">
+   456→                  {item.archivos.map((a) => (
+   457→                    <li
+   458→                      key={a.id}
+   459→                      className="flex items-center gap-3 py-2.5"
+   460→                    >
+   461→                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+   462→                      <div className="min-w-0 flex-1">
+   463→                        <a
+   464→                          href={a.archivo}
+   465→                          download={a.nombre}
+   466→                          className="block truncate text-sm font-medium text-emerald-600 hover:underline"
+   467→                          title={a.nombre}
+   468→                        >
+   469→                          {a.nombre}
+   470→                        </a>
+   471→                        <p className="text-[11px] text-muted-foreground">
+   472→                          {a.tipo || "archivo"} · {fmtFecha(a.fechaSubida)}
+   473→                        </p>
+   474→                      </div>
+   475→                      <a
+   476→                        href={a.archivo}
+   477→                        download={a.nombre}
+   478→                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+   479→                        title="Descargar"
+   480→                      >
+   481→                        <Download className="h-4 w-4" />
+   482→                      </a>
+   483→                      {!isAuditor && (
+   484→                        <button
+   485→                          type="button"
+   486→                          onClick={() =>
+   487→                            eliminarArchivo.mutate(a.id, {
+   488→                              onSuccess: () => toast.success("Archivo eliminado"),
+   489→                              onError: (err: unknown) =>
+   490→                                toast.error((err as Error).message || "Error al eliminar"),
+   491→                            })
+   492→                          }
+   493→                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+   494→                          title="Eliminar archivo"
+   495→                        >
+   496→                          <Trash2 className="h-4 w-4" />
+   497→                        </button>
+   498→                      )}
+   499→                    </li>
+   500→                  ))}
+   501→                </ul>
+   502→              )}
+   503→            </CardContent>
+   504→          </Card>
+   505→        </div>
+   506→
+   507→        {/* RIGHT */}
+   508→        <div className="space-y-4">
+   509→          {/* Cambiar estado */}
+   510→          {!isAuditor && (
+   511→            <Card>
+   512→              <CardHeader>
+   513→                <CardTitle className="flex items-center gap-2 text-base">
+   514→                  <Clock className="h-4 w-4 text-muted-foreground" />
+   515→                  Cambiar estado
+   516→                </CardTitle>
+   517→                <CardDescription>
+   518→                  Estado actual:{" "}
+   519→                  <span className="font-medium text-foreground">
+   520→                    {ESTADO_LABEL[item.estado as keyof typeof ESTADO_LABEL] ?? item.estado}
+   521→                  </span>
+   522→                </CardDescription>
+   523→              </CardHeader>
+   524→              <CardContent>
+   525→                <form onSubmit={submitEstado} className="space-y-3">
+   526→                  <div className="space-y-1.5">
+   527→                    <Label htmlFor="estado" className="text-xs">
+   528→                      Nuevo estado
+   529→                    </Label>
+   530→                    <Select
+   531→                      value={estadoForm.estado}
+   532→                      onValueChange={(v) =>
+   533→                        setEstadoForm((s) => ({ ...s, estado: v }))
+   534→                      }
+   535→                    >
+   536→                      <SelectTrigger id="estado" className="w-full">
+   537→                        <SelectValue placeholder="Selecciona un estado" />
+   538→                      </SelectTrigger>
+   539→                      <SelectContent>
+   540→                        {ESTADOS.map((e) => (
+   541→                          <SelectItem key={e.value} value={e.value}>
+   542→                            <span aria-hidden>{e.emoji}</span> {e.label}
+   543→                          </SelectItem>
+   544→                        ))}
+   545→                      </SelectContent>
+   546→                    </Select>
+   547→                  </div>
+   548→
+   549→                  <div className="space-y-1.5">
+   550→                    <Label htmlFor="comentario" className="text-xs">
+   551→                      Comentario (opcional)
+   552→                    </Label>
+   553→                    <Textarea
+   554→                      id="comentario"
+   555→                      rows={2}
+   556→                      placeholder="Explica brevemente el motivo del cambio…"
+   557→                      value={estadoForm.comentario}
+   558→                      onChange={(e) =>
+   559→                        setEstadoForm((s) => ({ ...s, comentario: e.target.value }))
+   560→                      }
+   561→                    />
+   562→                  </div>
+   563→
+   564→                  <div className="space-y-1.5">
+   565→                    <Label htmlFor="solucion" className="text-xs">
+   566→                      Solución / detalle (opcional)
+   567→                    </Label>
+   568→                    <Textarea
+   569→                      id="solucion"
+   570→                      rows={3}
+   571→                      placeholder="Describe la solución aplicada…"
+   572→                      value={estadoForm.solucion}
+   573→                      onChange={(e) =>
+   574→                        setEstadoForm((s) => ({ ...s, solucion: e.target.value }))
+   575→                      }
+   576→                    />
+   577→                  </div>
+   578→
+   579→                  {user?.role === "admin" && (
+   580→                    <div className="space-y-1.5">
+   581→                      <Label htmlFor="tecnico" className="text-xs">
+   582→                        Técnico asignado
+   583→                      </Label>
+   584→                      <Select
+   585→                        value={estadoForm.tecnicoAsignadoId || "__none__"}
+   586→                        onValueChange={(v) =>
+   587→                          setEstadoForm((s) => ({
+   588→                            ...s,
+   589→                            tecnicoAsignadoId: v === "__none__" ? "" : v,
+   590→                          }))
+   591→                        }
+   592→                      >
+   593→                        <SelectTrigger id="tecnico" className="w-full">
+   594→                          <SelectValue placeholder="Sin asignar" />
+   595→                        </SelectTrigger>
+   596→                        <SelectContent>
+   597→                          <SelectItem value="__none__">Sin asignar</SelectItem>
+   598→                          {tecnicos?.items?.map((t) => (
+   599→                            <SelectItem key={t.id} value={t.id}>
+   600→                              {t.name}
+   601→                            </SelectItem>
+   602→                          ))}
+   603→                        </SelectContent>
+   604→                      </Select>
+   605→                    </div>
+   606→                  )}
+   607→
+   608→                  <Button
+   609→                    type="submit"
+   610→                    className="w-full gap-2"
+   611→                    disabled={cambiarEstado.isPending}
+   612→                  >
+   613→                    {cambiarEstado.isPending ? "Actualizando…" : "Actualizar estado"}
+   614→                  </Button>
+   615→                </form>
+   616→              </CardContent>
+   617→            </Card>
+   618→          )}
+   619→
+   620→          {/* Historial */}
+   621→          <Card>
+   622→            <CardHeader>
+   623→              <CardTitle className="flex items-center gap-2 text-base">
+   624→                <History className="h-4 w-4 text-muted-foreground" />
+   625→                Historial de cambios
+   626→              </CardTitle>
+   627→              <CardDescription>
+   628→                {item.historial.length} evento(s) registrado(s)
+   629→              </CardDescription>
+   630→            </CardHeader>
+   631→            <CardContent>
+   632→              {item.historial.length === 0 ? (
+   633→                <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-6 text-center text-muted-foreground">
+   634→                  <History className="h-6 w-6" />
+   635→                  <p className="text-xs">Sin eventos registrados</p>
+   636→                </div>
+   637→              ) : (
+   638→                <ol className="relative max-h-[28rem] space-y-4 overflow-y-auto scrollbar-thin border-l border-l-2 border-border pl-4">
+   639→                  {[...item.historial].reverse().map((h) => (
+   640→                    <li key={h.id} className="relative">
+   641→                      <span className="absolute -left-[21px] top-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
+   642→                      <div className="rounded-lg border bg-muted/30 p-3">
+   643→                        <div className="flex flex-wrap items-center gap-2 text-xs">
+   644→                          <span className="font-semibold text-foreground">
+   645→                            {h.usuarioNombre}
+   646→                          </span>
+   647→                          <span className="text-muted-foreground">·</span>
+   648→                          {h.estadoAnterior ? (
+   649→                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+   650→                              <BadgeEstado estado={h.estadoAnterior} />
+   651→                              <ArrowLeft className="h-3 w-3" />
+   652→                              <BadgeEstado estado={h.estadoNuevo} />
+   653→                            </span>
+   654→                          ) : (
+   655→                            <BadgeEstado estado={h.estadoNuevo} />
+   656→                          )}
+   657→                          <span className="ml-auto text-[11px] text-muted-foreground">
+   658→                            {fmtFecha(h.fecha)}
+   659→                          </span>
+   660→                        </div>
+   661→                        {h.comentario && (
+   662→                          <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
+   663→                            “{h.comentario}”
+   664→                          </p>
+   665→                        )}
+   666→                      </div>
+   667→                    </li>
+   668→                  ))}
+   669→                </ol>
+   670→              )}
+   671→            </CardContent>
+   672→          </Card>
+   673→        </div>
+   674→      </div>
+   675→    </div>
+   676→  )
+   677→}
+   678→

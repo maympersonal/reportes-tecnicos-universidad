@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+
+# Build artifacts
+target/
+dist/
+bin/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Logs
+*.log
+dev.log
+server.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+db/*.db
+db/*.db-journal
+
+# Uploads (runtime)
+public/uploads/
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Next.js
+.next/
+out/
+next-env.d.ts

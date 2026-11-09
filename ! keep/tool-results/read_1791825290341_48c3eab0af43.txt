@@ -1,0 +1,742 @@
+     1→"use client"
+     2→
+     3→import { useAppStore } from "@/lib/store"
+     4→import { INSTITUCION } from "@/lib/constants"
+     5→import {
+     6→  Card,
+     7→  CardContent,
+     8→  CardHeader,
+     9→  CardTitle,
+    10→  CardDescription,
+    11→} from "@/components/ui/card"
+    12→import { Button } from "@/components/ui/button"
+    13→import { Badge } from "@/components/ui/badge"
+    14→import { Separator } from "@/components/ui/separator"
+    15→import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
+    16→import {
+    17→  Table,
+    18→  TableHeader,
+    19→  TableBody,
+    20→  TableHead,
+    21→  TableRow,
+    22→  TableCell,
+    23→} from "@/components/ui/table"
+    24→import {
+    25→  Shield,
+    26→  ArrowLeft,
+    27→  Mail,
+    28→  Lock,
+    29→  Database,
+    30→  Globe,
+    31→  UserCheck,
+    32→  FileText,
+    33→  Eye,
+    34→  KeyRound,
+    35→  Server,
+    36→  AlertCircle,
+    37→  Scale,
+    38→  Trash2,
+    39→  Mailbox,
+    40→  ScanEye,
+    41→  Clock,
+    42→  ListChecks,
+    43→} from "lucide-react"
+    44→import { toast } from "sonner"
+    45→
+    46→const ULTIMA_ACTUALIZACION = "1 de octubre de 2025"
+    47→
+    48→const SECCIONES = [
+    49→  { id: "intro", label: "1. Introducción y responsable" },
+    50→  { id: "datos", label: "2. Datos que recogemos" },
+    51→  { id: "finalidades", label: "3. Finalidades del tratamiento" },
+    52→  { id: "base-legal", label: "4. Base legal" },
+    53→  { id: "derechos", label: "5. Derechos del titular" },
+    54→  { id: "olvido", label: "6. Derecho al olvido" },
+    55→  { id: "destinatarios", label: "7. Destinatarios y transferencias" },
+    56→  { id: "seguridad", label: "8. Medidas de seguridad" },
+    57→  { id: "ia", label: "9. Uso de Inteligencia Artificial" },
+    58→  { id: "contacto", label: "10. Contacto y reclamos" },
+    59→]
+    60→
+    61→const DATOS_RECOGIDOS = [
+    62→  {
+    63→    dato: "Nombre y apellidos",
+    64→    finalidad: "Identificación del usuario y atribución de autoría de reportes.",
+    65→    base: "Cumplimiento de obligaciones contractuales (art. 10 Ley 1581).",
+    66→  },
+    67→  {
+    68→    dato: "Correo institucional",
+    69→    finalidad: "Notificaciones del sistema, recuperación de cuenta y reclamos.",
+    70→    base: "Ejecución del contrato y relación administrativa.",
+    71→  },
+    72→  {
+    73→    dato: "Nombre de usuario (username)",
+    74→    finalidad: "Inicio de sesión, trazabilidad y auditoría.",
+    75→    base: "Interés legítimo de seguridad informática.",
+    76→  },
+    77→  {
+    78→    dato: "Hash de contraseña (scrypt)",
+    79→    finalidad: "Autenticación segura. Nunca se almacena en texto claro.",
+    80→    base: "Medida técnica de seguridad (art. 15 Decreto 1377).",
+    81→  },
+    82→  {
+    83→    dato: "Cargo y teléfono",
+    84→    finalidad: "Asignación de roles y contacto operativo para soporte.",
+    85→    base: "Autorización expresa del titular.",
+    86→  },
+    87→  {
+    88→    dato: "Área de adscripción",
+    89→    finalidad: "Visibilidad de reportes según rol y dependencia.",
+    90→    base: "Necesidad operativa del servicio.",
+    91→  },
+    92→  {
+    93→    dato: "Direcciones IP y logs de sesión",
+    94→    finalidad: "Auditoría de accesos, prevención de fraude y soporte técnico.",
+    95→    base: "Interés legítimo (seguridad) art. 10 Ley 1581.",
+    96→  },
+    97→]
+    98→
+    99→const FINALIDADES = [
+   100→  "Gestionar la creación, asignación, seguimiento y resolución de reportes técnicos en el ámbito de la institución.",
+   101→  "Mantener un historial auditable de cambios de estado, archivos adjuntos y notificaciones internas.",
+   102→  "Generar estadísticas agregadas y rankings de desempeño de los técnicos, con fines de mejora del servicio.",
+   103→  "Permitir la exportación de informes en formato Excel, PDF y Word para fines administrativos y de auditoría.",
+   104→  "Garantizar la seguridad de la información mediante el control de accesos, registro de sesiones y prevención de usos indebidos.",
+   105→  "Cumplir con las obligaciones legales y reglamentarias que correspondan al responsable del tratamiento.",
+   106→]
+   107→
+   108→const DERECHOS_TITULAR = [
+   109→  {
+   110→    icon: Eye,
+   111→    title: "Acceder",
+   112→    text: "Conocer qué datos personales tiene el responsable y consultarlos de forma gratuita.",
+   113→  },
+   114→  {
+   115→    icon: UserCheck,
+   116→    title: "Actualizar",
+   117→    text: "Solicitar la actualización de los datos cuando hayan cambiado o sean incompletos.",
+   118→  },
+   119→  {
+   120→    icon: ScanEye,
+   121→    title: "Rectificar",
+   122→    text: "Corregir datos inexactos, parciales o erróneos que consten en el sistema.",
+   123→  },
+   124→  {
+   125→    icon: Trash2,
+   126→    title: "Suprimir",
+   127→    text: "Solicitar la supresión de los datos cuando no sean necesarios o el tratamiento sea ilícito.",
+   128→  },
+   129→  {
+   130→    icon: KeyRound,
+   131→    title: "Revocar autorización",
+   132→    text: "Retirar el consentimiento otorgado para el tratamiento de los datos personales.",
+   133→  },
+   134→]
+   135→
+   136→const DESTINATARIOS = [
+   137→  {
+   138→    pais: "EE. UU. 🇺🇸",
+   139→    proveedor: "Supabase",
+   140→    finalidad: "Base de datos y autenticación del backend.",
+   141→    garantias: "Cláusulas contractuales tipo (SCC) y cifrado en tránsito y reposo.",
+   142→  },
+   143→  {
+   144→    pais: "EE. UU. 🇺🇸",
+   145→    proveedor: "Railway",
+   146→    finalidad: "Hosting del backend y orquestación de servicios.",
+   147→    garantias: "Acuerdo de tratamiento de datos y políticas de seguridad.",
+   148→  },
+   149→  {
+   150→    pais: "EE. UU. 🇺🇸",
+   151→    proveedor: "Netlify",
+   152→    finalidad: "Hosting del frontend y distribución de la SPA.",
+   153→    garantias: "Certificación SOC 2 y cumplimiento con estándares de la industria.",
+   154→  },
+   155→  {
+   156→    pais: "Francia 🇫🇷",
+   157→    proveedor: "Brevo",
+   158→    finalidad: "Envío de correos transaccionales y notificaciones.",
+   159→    garantias: "RGPD (UE) y compromisos de confidencialidad.",
+   160→  },
+   161→]
+   162→
+   163→const MEDIDAS_SEGURIDAD = [
+   164→  {
+   165→    icon: KeyRound,
+   166→    title: "Hashing de contraseñas",
+   167→    text: "Las contraseñas se almacenan mediante el algoritmo scrypt con sal, impidiendo su recuperación en texto plano.",
+   168→  },
+   169→  {
+   170→    icon: Lock,
+   171→    title: "Sesiones con JWT firmado",
+   172→    text: "Cada sesión se representa con un token JWT firmado, con caducidad de 7 días y revocación centralizada.",
+   173→  },
+   174→  {
+   175→    icon: Globe,
+   176→    title: "Cifrado en tránsito (HTTPS)",
+   177→    text: "Todas las comunicaciones entre el cliente y el servidor se cifran mediante TLS 1.2+ (HTTPS).",
+   178→  },
+   179→  {
+   180→    icon: Shield,
+   181→    title: "Control de accesos por rol (RBAC)",
+   182→    text: "Visibilidad y permisos diferenciados para Administrador, Técnico y Auditor; la mínima exposición posible.",
+   183→  },
+   184→  {
+   185→    icon: Server,
+   186→    title: "Auditoría y logs",
+   187→    text: "Se registran accesos, cambios de estado y operaciones críticas para garantizar la trazabilidad.",
+   188→  },
+   189→  {
+   190→    icon: AlertCircle,
+   191→    title: "Principio de menor privilegio",
+   192→    text: "Cada usuario accede únicamente a la información necesaria para su función.",
+   193→  },
+   194→]
+   195→
+   196→export function PrivacidadView() {
+   197→  const setView = useAppStore((s) => s.setView)
+   198→
+   199→  const copiarCorreo = () => {
+   200→    navigator.clipboard?.writeText(INSTITUCION.correo)
+   201→    toast.success("Correo copiado al portapapeles")
+   202→  }
+   203→
+   204→  return (
+   205→    <div className="mx-auto max-w-6xl space-y-6 animate-fade-in-up px-1 pb-10">
+   206→      {/* Header institucional */}
+   207→      <Card className="overflow-hidden border-0 bg-institucional text-white shadow-md">
+   208→        <CardContent className="p-6 sm:p-8">
+   209→          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+   210→            <div className="space-y-2">
+   211→              <Badge
+   212→                variant="secondary"
+   213→                className="gap-1 bg-white/15 text-white hover:bg-white/20"
+   214→              >
+   215→                <Shield className="h-3 w-3" /> Documento legal
+   216→              </Badge>
+   217→              <h1 className="text-2xl font-bold sm:text-3xl">Política de Privacidad</h1>
+   218→              <p className="text-sm text-white/85">
+   219→                {INSTITUCION.sistema} · {INSTITUCION.direccion}
+   220→              </p>
+   221→              <p className="text-xs text-white/70">
+   222→                Conforme a la Ley 1581 de 2012 y el Decreto 1377 de 2013 — República de
+   223→                Colombia.
+   224→              </p>
+   225→              <p className="text-xs text-white/70">
+   226→                Última actualización: {ULTIMA_ACTUALIZACION}
+   227→              </p>
+   228→            </div>
+   229→            <Button
+   230→              variant="secondary"
+   231→              onClick={() => setView("dashboard")}
+   232→              className="gap-2 bg-white/15 text-white hover:bg-white/25 hover:text-white"
+   233→            >
+   234→              <ArrowLeft className="h-4 w-4" /> Volver
+   235→            </Button>
+   236→          </div>
+   237→        </CardContent>
+   238→      </Card>
+   239→
+   240→      {/* Grid: sticky sidebar + content */}
+   241→      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+   242→        {/* Sticky index */}
+   243→        <aside className="hidden lg:block">
+   244→          <nav className="lg:sticky lg:top-20 lg:self-start">
+   245→            <Card className="p-4">
+   246→              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+   247→                Contenido
+   248→              </p>
+   249→              <ul className="space-y-1 text-sm">
+   250→                {SECCIONES.map((s) => (
+   251→                  <li key={s.id}>
+   252→                    <a
+   253→                      href={`#${s.id}`}
+   254→                      className="block rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
+   255→                    >
+   256→                      {s.label}
+   257→                    </a>
+   258→                  </li>
+   259→                ))}
+   260→              </ul>
+   261→              <Separator className="my-3" />
+   262→              <Button
+   263→                size="sm"
+   264→                variant="outline"
+   265→                className="w-full gap-1 text-xs"
+   266→                onClick={copiarCorreo}
+   267→              >
+   268→                <Mail className="h-3 w-3" /> Copiar contacto
+   269→              </Button>
+   270→            </Card>
+   271→          </nav>
+   272→        </aside>
+   273→
+   274→        {/* Content */}
+   275→        <div className="space-y-4">
+   276→          {/* 1. Introducción */}
+   277→          <Card id="intro" className="scroll-mt-20">
+   278→            <CardHeader>
+   279→              <div className="flex items-center gap-2">
+   280→                <FileText className="h-5 w-5 text-emerald-600" />
+   281→                <CardTitle>1. Introducción y responsable del tratamiento</CardTitle>
+   282→              </div>
+   283→              <CardDescription>
+   284→                Identidad del responsable y compromiso con la protección de datos.
+   285→              </CardDescription>
+   286→            </CardHeader>
+   287→            <CardContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+   288→              <p>
+   289→                La <strong className="text-foreground">{INSTITUCION.nombre}</strong>, a
+   290→                través de la <strong className="text-foreground">{INSTITUCION.direccion}</strong>{" "}
+   291→                y, específicamente, del{" "}
+   292→                <strong className="text-foreground">{INSTITUCION.departamento}</strong>, actúa
+   293→                como <strong className="text-foreground">responsable del tratamiento</strong>{" "}
+   294→                de los datos personales en el marco del{" "}
+   295→                <strong className="text-foreground">{INSTITUCION.sistema}</strong>. Esta
+   296→                plataforma se compromete a garantizar la privacidad y el ejercicio de los
+   297→                derechos de los titulares de datos, conforme a lo dispuesto en la Ley
+   298→                Estatutaria 1581 de 2012 y el Decreto 1377 de 2013.
+   299→              </p>
+   300→              <p>
+   301→                Esta política describe qué datos se recogen, con qué finalidad, durante cuánto
+   302→                tiempo, a qué destinatarios se comparten y cuáles son los derechos del titular
+   303→                para ejercer control sobre su información.
+   304→              </p>
+   305→              <Alert>
+   306→                <Scale className="h-4 w-4" />
+   307→                <AlertTitle>Marco normativo aplicable</AlertTitle>
+   308→                <AlertDescription>
+   309→                  Ley Estatutaria 1581 de 2012 (Protección de Datos Personales), Decreto 1377
+   310→                  de 2013 (reglamentario) y lineamientos de la Superintendencia de Industria y
+   311→                  Comercio (SIC).
+   312→                </AlertDescription>
+   313→              </Alert>
+   314→            </CardContent>
+   315→          </Card>
+   316→
+   317→          {/* 2. Datos personales */}
+   318→          <Card id="datos" className="scroll-mt-20">
+   319→            <CardHeader>
+   320→              <div className="flex items-center gap-2">
+   321→                <Database className="h-5 w-5 text-emerald-600" />
+   322→                <CardTitle>2. Datos personales que recogemos</CardTitle>
+   323→              </div>
+   324→              <CardDescription>
+   325→                Inventario de datos tratados, su finalidad y base legal.
+   326→              </CardDescription>
+   327→            </CardHeader>
+   328→            <CardContent className="space-y-3">
+   329→              <div className="overflow-hidden rounded-md border">
+   330→                <Table>
+   331→                  <TableHeader>
+   332→                    <TableRow className="bg-muted/40">
+   333→                      <TableHead className="min-w-[160px]">Dato personal</TableHead>
+   334→                      <TableHead>Finalidad</TableHead>
+   335→                      <TableHead className="min-w-[180px]">Base legal</TableHead>
+   336→                    </TableRow>
+   337→                  </TableHeader>
+   338→                  <TableBody>
+   339→                    {DATOS_RECOGIDOS.map((row) => (
+   340→                      <TableRow key={row.dato}>
+   341→                        <TableCell className="font-medium">{row.dato}</TableCell>
+   342→                        <TableCell className="text-xs">{row.finalidad}</TableCell>
+   343→                        <TableCell className="text-xs text-muted-foreground">
+   344→                          {row.base}
+   345→                        </TableCell>
+   346→                      </TableRow>
+   347→                    ))}
+   348→                  </TableBody>
+   349→                </Table>
+   350→              </div>
+   351→              <Alert>
+   352→                <Lock className="h-4 w-4" />
+   353→                <AlertTitle>Principio de minimización</AlertTitle>
+   354→                <AlertDescription>
+   355→                  Solo se recogen los datos estrictamente necesarios para la prestación del
+   356→                  servicio. El sistema no solicita datos sensibles (salud, ideología,
+   357→                  biométricos, vida sexual, etc.).
+   358→                </AlertDescription>
+   359→              </Alert>
+   360→            </CardContent>
+   361→          </Card>
+   362→
+   363→          {/* 3. Finalidades */}
+   364→          <Card id="finalidades" className="scroll-mt-20">
+   365→            <CardHeader>
+   366→              <div className="flex items-center gap-2">
+   367→                <ListChecks className="h-5 w-5 text-emerald-600" />
+   368→                <CardTitle>3. Finalidades del tratamiento</CardTitle>
+   369→              </div>
+   370→              <CardDescription>
+   371→                Los datos se tratan exclusivamente para los siguientes fines.
+   372→              </CardDescription>
+   373→            </CardHeader>
+   374→            <CardContent>
+   375→              <ul className="space-y-2 text-sm text-muted-foreground">
+   376→                {FINALIDADES.map((f, i) => (
+   377→                  <li key={i} className="flex items-start gap-2">
+   378→                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+   379→                    <span className="leading-relaxed">{f}</span>
+   380→                  </li>
+   381→                ))}
+   382→              </ul>
+   383→              <Alert className="mt-3">
+   384→                <Clock className="h-4 w-4" />
+   385→                <AlertTitle>Principio de temporalidad</AlertTitle>
+   386→                <AlertDescription>
+   387→                  Los datos se conservan durante el tiempo necesario para cumplir con la
+   388→                  finalidad descrita y, posteriormente, durante los plazos legales aplicables.
+   389→                  Cumplido dicho plazo, se anonimizan o suprimen.
+   390→                </AlertDescription>
+   391→              </Alert>
+   392→            </CardContent>
+   393→          </Card>
+   394→
+   395→          {/* 4. Base legal */}
+   396→          <Card id="base-legal" className="scroll-mt-20">
+   397→            <CardHeader>
+   398→              <div className="flex items-center gap-2">
+   399→                <Scale className="h-5 w-5 text-emerald-600" />
+   400→                <CardTitle>4. Base legal del tratamiento</CardTitle>
+   401→              </div>
+   402→              <CardDescription>
+   403→                Fundamento normativo conforme a la legislación colombiana.
+   404→              </CardDescription>
+   405→            </CardHeader>
+   406→            <CardContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+   407→              <p>
+   408→                El tratamiento de datos personales se realiza sobre la base de las siguientes
+   409→                causales legalmente reconocidas:
+   410→              </p>
+   411→              <ul className="space-y-2">
+   412→                <li className="flex items-start gap-2">
+   413→                  <Badge variant="outline" className="mt-0.5 shrink-0 font-mono text-xs">
+   414→                    Art. 5
+   415→                  </Badge>
+   416→                  <span>
+   417→                    <strong className="text-foreground">Autorización del titular.</strong>{" "}
+   418→                    El usuario consiente libre, previa, expresa e inequívocamente el tratamiento
+   419→                    de sus datos al crear su cuenta y aceptar esta política.
+   420→                  </span>
+   421→                </li>
+   422→                <li className="flex items-start gap-2">
+   423→                  <Badge variant="outline" className="mt-0.5 shrink-0 font-mono text-xs">
+   424→                    Art. 4
+   425→                  </Badge>
+   426→                  <span>
+   427→                    <strong className="text-foreground">Principios rectores.</strong> El
+   428→                    tratamiento se rige por los principios de legalidad, finalidad, libertad,
+   429→                    veracidad o calidad, transparencia, acceso restringido, seguridad y
+   430→                    confidencialidad.
+   431→                  </span>
+   432→                </li>
+   433→                <li className="flex items-start gap-2">
+   434→                  <Badge variant="outline" className="mt-0.5 shrink-0 font-mono text-xs">
+   435→                    Art. 10
+   436→                  </Badge>
+   437→                  <span>
+   438→                    <strong className="text-foreground">Causales habilitantes.</strong>{" "}
+   439→                    Ejecución de un contrato, cumplimiento de deberes legales y la atención de
+   440→                    intereses legítimos del responsable en materia de seguridad y auditoría.
+   441→                  </span>
+   442→                </li>
+   443→                <li className="flex items-start gap-2">
+   444→                  <Badge variant="outline" className="mt-0.5 shrink-0 font-mono text-xs">
+   445→                    Dec. 1377
+   446→                  </Badge>
+   447→                  <span>
+   448→                    <strong className="text-foreground">Reglamentación.</strong> El Decreto
+   449→                    1377 de 2013 desarrolla los lineamientos operativos para la gestión
+   450→                    adecuada de los datos personales por parte de los responsables.
+   451→                  </span>
+   452→                </li>
+   453→              </ul>
+   454→            </CardContent>
+   455→          </Card>
+   456→
+   457→          {/* 5. Derechos del titular */}
+   458→          <Card id="derechos" className="scroll-mt-20">
+   459→            <CardHeader>
+   460→              <div className="flex items-center gap-2">
+   461→                <UserCheck className="h-5 w-5 text-emerald-600" />
+   462→                <CardTitle>5. Derechos del titular (art. 8 Ley 1581)</CardTitle>
+   463→              </div>
+   464→              <CardDescription>
+   465→                Derechos que puede ejercer el titular sobre sus datos personales.
+   466→              </CardDescription>
+   467→            </CardHeader>
+   468→            <CardContent>
+   469→              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   470→                {DERECHOS_TITULAR.map((d) => (
+   471→                  <div
+   472→                    key={d.title}
+   473→                    className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5"
+   474→                  >
+   475→                    <div className="flex items-center gap-2">
+   476→                      <d.icon className="h-4 w-4 text-emerald-600" />
+   477→                      <p className="text-sm font-semibold text-foreground">{d.title}</p>
+   478→                    </div>
+   479→                    <p className="mt-1 text-xs text-muted-foreground">{d.text}</p>
+   480→                  </div>
+   481→                ))}
+   482→              </div>
+   483→              <Alert className="mt-3">
+   484→                <AlertCircle className="h-4 w-4" />
+   485→                <AlertTitle>Ejercicio gratuito</AlertTitle>
+   486→                <AlertDescription>
+   487→                  El ejercicio de los derechos es gratuito. El responsable responderá a la
+   488→                  solicitud en un plazo máximo de quince (15) días hábiles, conforme al art. 13
+   489→                  de la Ley 1581 de 2012.
+   490→                </AlertDescription>
+   491→              </Alert>
+   492→            </CardContent>
+   493→          </Card>
+   494→
+   495→          {/* 6. Derecho al olvido */}
+   496→          <Card id="olvido" className="scroll-mt-20">
+   497→            <CardHeader>
+   498→              <div className="flex items-center gap-2">
+   499→                <Trash2 className="h-5 w-5 text-emerald-600" />
+   500→                <CardTitle>6. Derecho al olvido y supresión</CardTitle>
+   501→              </div>
+   502→              <CardDescription>
+   503→                Cómo ejercer el derecho a la supresión dentro del sistema.
+   504→              </CardDescription>
+   505→            </CardHeader>
+   506→            <CardContent className="space-y-3 text-sm text-muted-foreground">
+   507→              <p>
+   508→                El titular puede ejercer su derecho a la supresión de datos personales
+   509→                directamente desde la interfaz del sistema, sin necesidad de trámite
+   510→                administrativo adicional. El flujo es el siguiente:
+   511→              </p>
+   512→              <ol className="space-y-2">
+   513→                <li className="flex items-start gap-3">
+   514→                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+   515→                    1
+   516→                  </span>
+   517→                  <span>
+   518→                    Acceder al panel del usuario en la barra superior (avatar) y seleccionar{" "}
+   519→                    <strong className="text-foreground">“Eliminar mi cuenta”</strong>.
+   520→                  </span>
+   521→                </li>
+   522→                <li className="flex items-start gap-3">
+   523→                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+   524→                    2
+   525→                  </span>
+   526→                  <span>
+   527→                    Confirmar la acción escribiendo{" "}
+   528→                    <code className="rounded bg-muted px-1 font-mono text-xs">ELIMINAR</code>{" "}
+   529→                    en el diálogo de confirmación.
+   530→                  </span>
+   531→                </li>
+   532→                <li className="flex items-start gap-3">
+   533→                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+   534→                    3
+   535→                  </span>
+   536→                  <span>
+   537→                    El sistema <strong className="text-foreground">anonimiza</strong> los datos
+   538→                    personales, conserva los reportes atribuyéndolos a un usuario anónimo y
+   539→                    desactiva la cuenta. Las sesiones y notificaciones asociadas se eliminan.
+   540→                  </span>
+   541→                </li>
+   542→              </ol>
+   543→              <Alert variant="destructive">
+   544→                <AlertCircle className="h-4 w-4" />
+   545→                <AlertTitle>Acción irreversible</AlertTitle>
+   546→                <AlertDescription>
+   547→                  Una vez completada, la operación no puede revertirse. La anonimización busca
+   548→                  preservar la integridad histórica del reporte técnico sin comprometer la
+   549→                  identidad del titular.
+   550→                </AlertDescription>
+   551→              </Alert>
+   552→            </CardContent>
+   553→          </Card>
+   554→
+   555→          {/* 7. Destinatarios */}
+   556→          <Card id="destinatarios" className="scroll-mt-20">
+   557→            <CardHeader>
+   558→              <div className="flex items-center gap-2">
+   559→                <Globe className="h-5 w-5 text-emerald-600" />
+   560→                <CardTitle>7. Destinatarios y transferencias internacionales</CardTitle>
+   561→              </div>
+   562→              <CardDescription>
+   563→                Terceros que actúan como encargados del tratamiento, con su país y finalidad.
+   564→              </CardDescription>
+   565→            </CardHeader>
+   566→            <CardContent className="space-y-3">
+   567→              <div className="overflow-hidden rounded-md border">
+   568→                <Table>
+   569→                  <TableHeader>
+   570→                    <TableRow className="bg-muted/40">
+   571→                      <TableHead>País</TableHead>
+   572→                      <TableHead>Proveedor</TableHead>
+   573→                      <TableHead>Finalidad</TableHead>
+   574→                      <TableHead>Garantías</TableHead>
+   575→                    </TableRow>
+   576→                  </TableHeader>
+   577→                  <TableBody>
+   578→                    {DESTINATARIOS.map((d) => (
+   579→                      <TableRow key={d.proveedor}>
+   580→                        <TableCell className="text-xs">{d.pais}</TableCell>
+   581→                        <TableCell className="font-medium">{d.proveedor}</TableCell>
+   582→                        <TableCell className="text-xs">{d.finalidad}</TableCell>
+   583→                        <TableCell className="text-xs text-muted-foreground">
+   584→                          {d.garantias}
+   585→                        </TableCell>
+   586→                      </TableRow>
+   587→                    ))}
+   588→                  </TableBody>
+   589→                </Table>
+   590→              </div>
+   591→              <Alert>
+   592→                <Globe className="h-4 w-4" />
+   593→                <AlertTitle>Transferencias internacionales</AlertTitle>
+   594→                <AlertDescription>
+   595→                  Se han celebrado acuerdos con cláusulas contractuales tipo y se exige a cada
+   596→                  encargado el cumplimiento de estándares equivalentes a los previstos en la
+   597→                  legislación colombiana. La lista de proveedores puede actualizarse; cualquier
+   598→                  cambio se notificará a través de esta política.
+   599→                </AlertDescription>
+   600→              </Alert>
+   601→            </CardContent>
+   602→          </Card>
+   603→
+   604→          {/* 8. Medidas de seguridad */}
+   605→          <Card id="seguridad" className="scroll-mt-20">
+   606→            <CardHeader>
+   607→              <div className="flex items-center gap-2">
+   608→                <Lock className="h-5 w-5 text-emerald-600" />
+   609→                <CardTitle>8. Medidas de seguridad técnicas y organizativas</CardTitle>
+   610→              </div>
+   611→              <CardDescription>
+   612→                Salvaguardas implementadas para proteger los datos personales.
+   613→              </CardDescription>
+   614→            </CardHeader>
+   615→            <CardContent>
+   616→              <div className="grid gap-3 sm:grid-cols-2">
+   617→                {MEDIDAS_SEGURIDAD.map((m) => (
+   618→                  <div
+   619→                    key={m.title}
+   620→                    className="rounded-lg border bg-card p-4 transition-colors hover:border-emerald-300 dark:hover:border-emerald-500/30"
+   621→                  >
+   622→                    <div className="flex items-center gap-2">
+   623→                      <m.icon className="h-4 w-4 text-emerald-600" />
+   624→                      <p className="text-sm font-semibold text-foreground">{m.title}</p>
+   625→                    </div>
+   626→                    <p className="mt-1 text-xs text-muted-foreground">{m.text}</p>
+   627→                  </div>
+   628→                ))}
+   629→              </div>
+   630→            </CardContent>
+   631→          </Card>
+   632→
+   633→          {/* 9. Declaración IA */}
+   634→          <Card id="ia" className="scroll-mt-20 border-emerald-200 bg-emerald-50/40 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+   635→            <CardHeader>
+   636→              <div className="flex items-center gap-2">
+   637→                <ScanEye className="h-5 w-5 text-emerald-600" />
+   638→                <CardTitle>9. Declaración sobre uso de Inteligencia Artificial</CardTitle>
+   639→              </div>
+   640→              <CardDescription>
+   641→                Conforme al artículo 15 del Decreto 1377 de 2013.
+   642→              </CardDescription>
+   643→            </CardHeader>
+   644→            <CardContent className="space-y-3 text-sm text-muted-foreground">
+   645→              <p>
+   646→                El <strong className="text-foreground">{INSTITUCION.sistema}</strong>{" "}
+   647→                <strong className="text-foreground">NO utiliza Inteligencia Artificial</strong>{" "}
+   648→                para tomar decisiones automatizadas que produzcan efectos jurídicos o afecten
+   649→                de manera significativa los intereses del titular, en cumplimiento del artículo
+   650→                15 del Decreto 1377 de 2013.
+   651→              </p>
+   652→              <p>
+   653→                Las decisiones dentro del sistema (asignación de técnicos, priorización de
+   654→                reportes, cálculo de rankings y métricas de desempeño) son producto de reglas
+   655→                deterministas y explícitas, configuradas por los administradores y
+   656→                supervisadas por humanos. Los reportes de estadísticas y rankings se calculan
+   657→                mediante fórmulas aritméticas públicas y auditables.
+   658→              </p>
+   659→              <Alert>
+   660→                <Shield className="h-4 w-4" />
+   661→                <AlertTitle>Sin elaboración de perfiles automatizados</AlertTitle>
+   662→                <AlertDescription>
+   663→                  No se realiza elaboración de perfiles ni se realizan predicciones
+   664→                  automatizadas que afecten al titular. Cualquier análisis sobre los datos es
+   665→                  meramente estadístico y agregado.
+   666→                </AlertDescription>
+   667→              </Alert>
+   668→            </CardContent>
+   669→          </Card>
+   670→
+   671→          {/* 10. Contacto */}
+   672→          <Card id="contacto" className="scroll-mt-20">
+   673→            <CardHeader>
+   674→              <div className="flex items-center gap-2">
+   675→                <Mailbox className="h-5 w-5 text-emerald-600" />
+   676→                <CardTitle>10. Contacto y reclamos</CardTitle>
+   677→              </div>
+   678→              <CardDescription>
+   679→                Canal habilitado para el ejercicio de derechos y presentación de reclamos.
+   680→              </CardDescription>
+   681→            </CardHeader>
+   682→            <CardContent className="space-y-3 text-sm text-muted-foreground">
+   683→              <p>
+   684→                El titular podrá ejercer sus derechos de acceso, rectificación, actualización,
+   685→                supresión y revocación, así como presentar reclamos, dirigiéndose al
+   686→                responsable del tratamiento a través del canal oficial:
+   687→              </p>
+   688→              <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+   689→                <div className="flex items-center gap-2">
+   690→                  <Mail className="h-4 w-4 text-emerald-600" />
+   691→                  <div>
+   692→                    <p className="text-xs text-muted-foreground">Correo institucional</p>
+   693→                    <a
+   694→                      href={`mailto:${INSTITUCION.correo}`}
+   695→                      className="font-mono text-sm font-semibold text-foreground hover:text-emerald-600"
+   696→                    >
+   697→                      {INSTITUCION.correo}
+   698→                    </a>
+   699→                  </div>
+   700→                </div>
+   701→                <Button size="sm" variant="outline" className="gap-1" onClick={copiarCorreo}>
+   702→                  <Mail className="h-3 w-3" /> Copiar
+   703→                </Button>
+   704→              </div>
+   705→              <Alert>
+   706→                <Shield className="h-4 w-4" />
+   707→                <AlertTitle>Término de respuesta</AlertTitle>
+   708→                <AlertDescription>
+   709→                  Las peticiones de consulta se atenderán en un máximo de diez (10) días
+   710→                  hábiles y los reclamos en un máximo de quince (15) días hábiles, conforme a
+   711→                  los artículos 12 y 13 de la Ley 1581 de 2012. Si el titular considera que su
+   712→                  derecho ha sido vulnerado, podrá acudir a la Superintendencia de Industria y
+   713→                  Comercio.
+   714→                </AlertDescription>
+   715→              </Alert>
+   716→            </CardContent>
+   717→          </Card>
+   718→
+   719→          {/* Footer */}
+   720→          <Card className="bg-muted/30">
+   721→            <CardContent className="flex flex-col gap-2 p-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+   722→              <div className="flex flex-wrap items-center gap-2">
+   723→                <Shield className="h-3 w-3" />
+   724→                <span>
+   725→                  Última actualización:{" "}
+   726→                  <strong className="text-foreground">{ULTIMA_ACTUALIZACION}</strong>
+   727→                </span>
+   728→              </div>
+   729→              <a
+   730→                href={`mailto:${INSTITUCION.correo}`}
+   731→                className="font-mono hover:text-emerald-600"
+   732→              >
+   733→                {INSTITUCION.correo}
+   734→              </a>
+   735→            </CardContent>
+   736→          </Card>
+   737→        </div>
+   738→      </div>
+   739→    </div>
+   740→  )
+   741→}
+   742→

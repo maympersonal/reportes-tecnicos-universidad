@@ -1,0 +1,8 @@
+# Configuración de Bun para el proyecto
+# Sistema de Reportes Técnicos — Dirección de Innovación Digital
+
+[test]
+# Preload: aísla la base de datos de pruebas ANTES de cargar cualquier módulo.
+# Todas las pruebas usan db/test.db; la base de desarrollo (db/custom.db)
+# jamás es tocada por la suite.
+preload = ["./tests/setup-env.ts"]

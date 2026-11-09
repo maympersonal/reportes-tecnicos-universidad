@@ -1,0 +1,185 @@
+// Sistema de Reportes Técnicos - Prisma Schema (SQLite)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  name         String
+  password     String
+  role         String   @default("tecnico") // superadmin | admin | tecnico | auditor
+  permisos     String?  // JSON string de permisos custom (opcional, override)
+  cargo        String?
+  telefono     String?
+  areaId       String?
+  area         Area?    @relation(fields: [areaId], references: [id])
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions            Session[]
+  reportesCreados     Reporte[]      @relation("ReporteCreador")
+  reportesAsignados   Reporte[]      @relation("ReporteTecnico")
+  archivosSubidos     ArchivoReporte[]
+  historiales         HistorialEstado[]
+  notificaciones      Notificacion[]
+  tiposTareaCreados   TipoTarea[]
+  tiposEquipoCreados  TipoEquipo[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+model TipoArea {
+  id          String   @id @default(cuid())
+  nombre      String   @unique
+  descripcion String?
+  areas       Area[]
+}
+
+model Area {
+  id           String    @id @default(cuid())
+  nombre       String    @unique
+  tipoAreaId   String
+  tipoArea     TipoArea  @relation(fields: [tipoAreaId], references: [id])
+  responsable  String?
+  activo       Boolean   @default(true)
+  ubicaciones  Ubicacion[]
+  reportes     Reporte[]
+  usuarios     User[]
+}
+
+model Ubicacion {
+  id         String   @id @default(cuid())
+  nombre     String
+  areaId     String
+  area       Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  edificio   String?
+  piso       String?
+  referencia String?
+}
+
+model TipoTarea {
+  id          String    @id @default(cuid())
+  codigo      String    @unique
+  nombre      String
+  activo      Boolean   @default(true)
+  creadoPorId String?
+  creadoPor   User?     @relation(fields: [creadoPorId], references: [id])
+  createdAt   DateTime  @default(now())
+  reportes    Reporte[]
+}
+
+model Reporte {
+  id                  String      @id @default(cuid())
+  codigo              String      @unique
+  tipoTareaId         String
+  tipoTarea           TipoTarea   @relation(fields: [tipoTareaId], references: [id])
+  descripcion         String
+  solucion            String?
+  areaId              String
+  area                Area        @relation(fields: [areaId], references: [id])
+  ubicacion           String?
+  usuarioNombre       String
+  usuarioCorreo       String
+  usuarioCargo        String?
+  prioridad           String      @default("media") // baja|media|alta|critica
+  estado              String      @default("pendiente") // pendiente|en_proceso|resuelto|cerrado
+  creadoPorId         String
+  creadoPor           User        @relation("ReporteCreador", fields: [creadoPorId], references: [id])
+  tecnicoAsignadoId   String?
+  tecnicoAsignado     User?       @relation("ReporteTecnico", fields: [tecnicoAsignadoId], references: [id])
+  fechaCreacion       DateTime    @default(now())
+  fechaActualizacion  DateTime    @updatedAt
+  fechaResolucion     DateTime?
+  equipos             EquipoReporte[]
+  archivos            ArchivoReporte[]
+  historial           HistorialEstado[]
+
+  @@index([estado])
+  @@index([prioridad])
+  @@index([areaId])
+  @@index([tipoTareaId])
+}
+
+model EquipoReporte {
+  id            String     @id @default(cuid())
+  reporteId     String
+  reporte       Reporte    @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  tipoEquipoId  String?
+  tipoEquipo    TipoEquipo? @relation(fields: [tipoEquipoId], references: [id])
+  tipoTexto     String?     // nombre del tipo (snapshot, por si se elimina el catálogo)
+  codigoActivo  String?
+  marca         String?
+  modelo        String?
+  serie         String?
+
+  @@index([reporteId])
+}
+
+model TipoEquipo {
+  id          String    @id @default(cuid())
+  nombre      String    @unique
+  creadoPorId String?
+  creadoPor   User?     @relation(fields: [creadoPorId], references: [id])
+  createdAt   DateTime  @default(now())
+  equipos     EquipoReporte[]
+}
+
+model ArchivoReporte {
+  id          String    @id @default(cuid())
+  reporteId   String
+  reporte     Reporte   @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  archivo     String    // path relativo en /public/uploads
+  nombre      String
+  tipo        String?
+  subidoPorId String?
+  subidoPor   User?     @relation(fields: [subidoPorId], references: [id])
+  fechaSubida DateTime  @default(now())
+
+  @@index([reporteId])
+}
+
+model HistorialEstado {
+  id             String    @id @default(cuid())
+  reporteId      String
+  reporte        Reporte   @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  estadoAnterior String?
+  estadoNuevo    String
+  comentario     String?
+  usuarioId      String?
+  usuario        User?     @relation(fields: [usuarioId], references: [id])
+  fecha          DateTime  @default(now())
+
+  @@index([reporteId])
+}
+
+model Notificacion {
+  id         String    @id @default(cuid())
+  usuarioId  String
+  usuario    User      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tipo       String    // nuevo_reporte|cambio_estado|asignacion
+  titulo     String
+  mensaje    String
+  reporteId  String?
+  leida      Boolean   @default(false)
+  fecha      DateTime  @default(now())
+
+  @@index([usuarioId])
+  @@index([leida])
+}

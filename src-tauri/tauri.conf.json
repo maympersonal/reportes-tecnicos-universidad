@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Sistema de Reportes Técnicos",
+  "version": "1.0.0",
+  "identifier": "cu.iris.reportes.tecnicos",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "beforeBuildCommand": "bun run build",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../.next/standalone"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Sistema de Reportes Técnicos",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "category": "Business",
+    "shortDescription": "Gestión centralizada de reportes técnicos",
+    "longDescription": "Sistema institucional para registrar, asignar y dar seguimiento a incidentes y solicitudes técnicas con trazabilidad, roles y reportes exportables."
+  }
+}
