@@ -129,7 +129,8 @@ export function ReporteFormView() {
   const setView = useAppStore((s) => s.setView)
 
   const isEdit = view === "reporte-editar"
-  const isAuditor = user?.role === "auditor"
+  const puedeGuardar = user?.permisos?.includes(isEdit ? "reportes.editar" : "reportes.crear") ?? false
+  const puedeAsignar = user?.permisos?.includes("reportes.asignar") ?? false
 
   const { data: tiposTarea } = useTiposTarea()
   const { data: tiposEquipo } = useTiposEquipo()
@@ -190,12 +191,12 @@ export function ReporteFormView() {
     })
   }
 
-  // Empty state: auditor reaches form (shouldn't happen), or edit without id
-  if (isAuditor) {
+  // Acceso al formulario según los permisos efectivos
+  if (!puedeGuardar) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center text-muted-foreground">
         <Inbox className="h-10 w-10" />
-        <p className="text-sm">El rol auditor no puede crear ni editar reportes.</p>
+        <p className="text-sm">No tienes permiso para realizar esta operación.</p>
         <Button variant="outline" size="sm" onClick={() => setView("reportes")} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Volver a reportes
         </Button>
@@ -358,7 +359,7 @@ export function ReporteFormView() {
         equipos: equiposPayload,
       }
       if (isEdit) body.solucion = form.solucion.trim() || null
-      if (user?.role === "admin") {
+      if (puedeAsignar) {
         body.tecnicoAsignadoId = form.tecnicoAsignadoId || null
       }
 
@@ -817,7 +818,7 @@ export function ReporteFormView() {
 
         {/* RIGHT (1 col) — acciones */}
         <div className="space-y-4">
-          {user?.role === "admin" && (
+          {puedeAsignar && (
             <SectionCard
               icon={UserCog}
               title="Asignación"

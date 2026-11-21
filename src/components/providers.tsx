@@ -17,6 +17,18 @@ function ThemeSync() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const sessionVersion = useAppStore((s) => s.sessionVersion)
+  return (
+    <SessionQueryProvider key={sessionVersion}>
+      <ThemeSync />
+      {children}
+    </SessionQueryProvider>
+  )
+}
+
+// Cada sesión tiene su propio cliente: una mutación tardía de la sesión anterior
+// nunca puede escribir en la caché de la nueva sesión.
+function SessionQueryProvider({ children }: { children: React.ReactNode }) {
   const [client] = useState(
     () =>
       new QueryClient({
@@ -29,9 +41,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   )
+  useEffect(() => () => {
+    void client.cancelQueries()
+    client.clear()
+  }, [client])
+
   return (
     <QueryClientProvider client={client}>
-      <ThemeSync />
       {children}
     </QueryClientProvider>
   )

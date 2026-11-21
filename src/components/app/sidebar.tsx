@@ -33,7 +33,7 @@ export function Sidebar() {
   const tienePermiso = (perm?: string) => !perm || (user?.permisos ?? []).includes(perm)
 
   const navItem = (item: (typeof NAV_ITEMS)[number]) => {
-    if (!tienePermiso(item.permiso as string | undefined)) return null
+    if ("permiso" in item && !tienePermiso(item.permiso)) return null
     const Icon = iconMap[item.icon] ?? CircleDot
     const active = view === item.view
     return (

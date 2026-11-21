@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest, hashPassword, publicUser, validarPassword, tienePermiso } from "@/lib/auth"
-import { PERMISOS_POR_ROL, type Permiso, type Rol } from "@/lib/constants"
+import { getUserFromRequest, hashPassword, publicUser, validarPassword, tienePermiso, getPermisos } from "@/lib/auth"
+import { ROLES, type Rol } from "@/lib/constants"
 import { ensureBootstrap } from "@/lib/bootstrap"
 
-// GET /api/usuarios — lista usuarios (excluye superadmin a no-superadmins)
+// GET /api/usuarios — lista usuarios (excluye admin a no-admins)
 export async function GET(req: NextRequest) {
   await ensureBootstrap()
   const me = await getUserFromRequest(req)
@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
   const baja = sp.get("baja") // "true" → inactivos
 
   let where: Record<string, unknown> = {}
-  if (me.role !== "superadmin") where.role = { not: "superadmin" }
-  if (rol) where.role = rol === "superadmin" && me.role !== "superadmin" ? where.role : rol
+  if (me.role !== "admin") where.role = { not: "admin" }
+  if (rol) where.role = rol === "admin" && me.role !== "admin" ? where.role : rol
   if (baja === "true") where.activo = false
   else if (baja === "false") where.activo = true
   if (q) {
@@ -48,14 +48,10 @@ export async function GET(req: NextRequest) {
       areaId: u.areaId,
       areaNombre: u.area?.nombre ?? null,
       activo: u.activo,
-      permisos: u.role === "superadmin" ? PERMISOS_POR_ROL.superadmin : (u.permisos ? safeParse(u.permisos) : PERMISOS_POR_ROL[u.role as Rol] ?? []),
+      permisos: getPermisos(u),
       createdAt: u.createdAt.toISOString(),
     })),
   })
-}
-
-function safeParse(s: string): Permiso[] {
-  try { const v = JSON.parse(s); return Array.isArray(v) ? v : [] } catch { return [] }
 }
 
 // POST /api/usuarios — crear usuario (requiere usuarios.gestionar)
@@ -72,13 +68,13 @@ export async function POST(req: NextRequest) {
   if (!username || !email || !name || !password) {
     return NextResponse.json({ error: "Usuario, email, nombre y contraseña son obligatorios" }, { status: 400 })
   }
-  // Solo superadmin puede crear superadmin/admin; admin no puede crear superadmin
+  // Solo administradores pueden crear otras cuentas administrativas
   const targetRole = String(role) as Rol
-  if (targetRole === "superadmin") {
-    return NextResponse.json({ error: "No se pueden crear cuentas superadmin" }, { status: 403 })
+  if (!ROLES.some((item) => item.value === targetRole)) {
+    return NextResponse.json({ error: "Rol inválido" }, { status: 400 })
   }
-  if (me.role !== "superadmin" && targetRole === "admin") {
-    return NextResponse.json({ error: "Solo el superadmin puede crear administradores" }, { status: 403 })
+  if (me.role !== "admin" && targetRole === "admin") {
+    return NextResponse.json({ error: "Solo el admin puede crear administradores" }, { status: 403 })
   }
   // Validar contraseña fuerte
   const val = validarPassword(String(password))
@@ -89,7 +85,7 @@ export async function POST(req: NextRequest) {
   const exists = await db.user.findFirst({ where: { OR: [{ username: String(username).toLowerCase() }, { email: String(email) }] } })
   if (exists) return NextResponse.json({ error: "Usuario o correo ya existen" }, { status: 409 })
 
-  const permisosJson = usarPermisosPorRol ? null : JSON.stringify(permisos ?? [])
+  const permisosJson = targetRole === "admin" || usarPermisosPorRol ? null : JSON.stringify(permisos ?? [])
   const created = await db.user.create({
     data: {
       username: String(username).toLowerCase(),

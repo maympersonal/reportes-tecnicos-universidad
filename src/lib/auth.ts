@@ -59,12 +59,13 @@ export async function getUserFromRequest(req: Request) {
     return null
   }
   if (!session.user || !session.user.activo) return null
-  return session.user
+  // Las sesiones previas siguen funcionando hasta la conversión del próximo bootstrap.
+  return session.user.role === "superadmin" ? { ...session.user, role: "admin" } : session.user
 }
 
-// Permisos efectivos del usuario: si tiene permisos custom (override), usa esos; si no, los del rol.
+// Admin tiene todos los permisos. Los demás usan permisos personalizados o los del rol.
 export function getPermisos(user: { role: string; permisos: string | null }): Permiso[] {
-  if (user.role === "superadmin") return PERMISOS_POR_ROL.superadmin
+  if (user.role === "admin") return PERMISOS_POR_ROL.admin
   const defaults = PERMISOS_POR_ROL[user.role as Rol] ?? []
   if (user.permisos) {
     try {
@@ -77,7 +78,7 @@ export function getPermisos(user: { role: string; permisos: string | null }): Pe
 
 export function tienePermiso(user: { role: string; permisos: string | null } | null, permiso: Permiso): boolean {
   if (!user) return false
-  if (user.role === "superadmin") return true
+  if (user.role === "admin") return true
   return getPermisos(user).includes(permiso)
 }
 

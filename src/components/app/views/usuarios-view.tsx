@@ -84,8 +84,6 @@ function fmtFecha(s: string) {
 
 function rolBadgeClass(role: string) {
   switch (role) {
-    case "superadmin":
-      return "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
     case "admin":
       return "border-emerald-400 bg-emerald-400/10 text-emerald-700 dark:text-emerald-300"
     case "tecnico":
@@ -173,10 +171,10 @@ export function UsuariosView() {
     })
   }
 
-  // Filtro de roles disponibles (no mostrar superadmin en el Select a menos que sea el superadmin)
+  // Filtro de roles disponibles (no mostrar admin en el Select a menos que sea el admin)
   const rolesFiltro = useMemo(() => {
     return ROLES.filter((r) => {
-      if (r.value === "superadmin" && user?.role !== "superadmin") return false
+      if (r.value === "admin" && user?.role !== "admin") return false
       return true
     })
   }, [user?.role])
@@ -381,9 +379,8 @@ export function UsuariosView() {
                     </TableRow>
                   ) : (
                     items.map((u, idx) => {
-                      const isSuperadmin = u.role === "superadmin"
+                      const isAdmin = u.role === "admin"
                       const isSelf = u.id === user?.id
-                      const isSuperadminSelf = isSuperadmin && isSelf
                       return (
                         <TableRow
                           key={u.id}
@@ -397,7 +394,7 @@ export function UsuariosView() {
                               <Avatar className="h-8 w-8">
                                 <AvatarFallback
                                   className={`text-[11px] font-semibold text-white ${
-                                    isSuperadmin
+                                    isAdmin
                                       ? "bg-emerald-700"
                                       : "bg-institucional"
                                   }`}
@@ -464,10 +461,10 @@ export function UsuariosView() {
                             )}
                           </TableCell>
                           <TableCell className="px-3 text-center">
-                            {isSuperadmin ? (
+                            {isAdmin ? (
                               <Badge
                                 variant="secondary"
-                                title="El superadmin posee todos los permisos"
+                                title="El admin posee todos los permisos"
                                 className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
                               >
                                 <ShieldCheck className="h-3 w-3" /> Todos
@@ -495,7 +492,7 @@ export function UsuariosView() {
                               </Button>
 
                               {tab === "activas" ? (
-                                !isSuperadmin && (
+                                !isAdmin && (
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                       <Button
@@ -570,8 +567,7 @@ export function UsuariosView() {
               </span>
             ))}
             <span className="ml-auto hidden text-[10px] sm:inline">
-              Solo el superadmin puede crear administradores. Nadie puede crear
-              superadmin.
+              Solo los administradores pueden crear otros administradores.
             </span>
           </CardContent>
         </Card>

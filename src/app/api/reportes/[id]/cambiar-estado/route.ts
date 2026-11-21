@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest } from "@/lib/auth"
+import { getUserFromRequest, tienePermiso } from "@/lib/auth"
 import { serializeReporte } from "@/lib/serialize"
 
 // POST /api/reportes/{id}/cambiar-estado
@@ -12,10 +12,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const r = await db.reporte.findUnique({ where: { id } })
   if (!r) return NextResponse.json({ error: "No encontrado" }, { status: 404 })
 
-  if (user.role === "auditor") {
-    return NextResponse.json({ error: "El auditor no puede cambiar estados" }, { status: 403 })
+  if (!tienePermiso(user, "reportes.cambiar_estado")) {
+    return NextResponse.json({ error: "Sin permiso para cambiar estados" }, { status: 403 })
   }
-  if (user.role === "tecnico" && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
+  if (!tienePermiso(user, "reportes.ver_todos") && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 
@@ -31,12 +31,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const estadoAnterior = r.estado
   const data: Record<string, unknown> = { estado: String(estado) }
   if (solucion !== undefined) data.solucion = solucion
-  if (user.role === "admin" && tecnicoAsignadoId !== undefined) {
+  if (tecnicoAsignadoId !== undefined) {
+    if (!tienePermiso(user, "reportes.asignar")) {
+      return NextResponse.json({ error: "Sin permiso para asignar técnicos" }, { status: 403 })
+    }
     data.tecnicoAsignadoId = tecnicoAsignadoId || null
   }
-  // Si pasa a resuelto/cerrado, guardar fechaResolucion
+  // Conservar la fecha de resolución al cerrar un reporte ya resuelto.
   if (String(estado) === "resuelto" || String(estado) === "cerrado") {
-    data.fechaResolucion = new Date()
+    data.fechaResolucion = r.fechaResolucion ?? new Date()
     if (solucion) data.solucion = solucion
   } else {
     data.fechaResolucion = null

@@ -1,7 +1,8 @@
 import { db } from "@/lib/db"
+import { tienePermiso } from "@/lib/auth"
 
-export function visibilityWhere(user: { id: string; role: string }) {
-  if (user.role === "tecnico") {
+export function visibilityWhere(user: { id: string; role: string; permisos: string | null }) {
+  if (!tienePermiso(user, "reportes.ver_todos")) {
     return { OR: [{ creadoPorId: user.id }, { tecnicoAsignadoId: user.id }] }
   }
   return {}

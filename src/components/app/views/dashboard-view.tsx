@@ -1,7 +1,7 @@
 "use client"
 
 import { useResumen, usePorMes, usePorTipo, usePorArea, useRanking, useReportes } from "@/lib/hooks"
-import { useAppStore } from "@/lib/store"
+import { useAppStore, type ReportesFilter } from "@/lib/store"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -59,7 +59,7 @@ export function DashboardView() {
   const { data: ranking } = useRanking()
   const { data: recientes } = useReportes({ page: 1, pageSize: 6 })
 
-  const irConFiltro = (f: Record<string, string>) => {
+  const irConFiltro = (f: ReportesFilter) => {
     setReportesFilter(f)
     setView("reportes")
   }

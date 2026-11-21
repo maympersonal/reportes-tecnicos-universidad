@@ -1,6 +1,6 @@
 // Constantes del Sistema de Reportes Técnicos
 
-export type Rol = "superadmin" | "admin" | "tecnico" | "auditor"
+export type Rol = "admin" | "tecnico" | "auditor"
 export type Estado = "pendiente" | "en_proceso" | "resuelto" | "cerrado"
 export type Prioridad = "baja" | "media" | "alta" | "critica"
 
@@ -19,7 +19,6 @@ export const PRIORIDADES: { value: Prioridad; label: string; color: string }[] =
 ]
 
 export const ROLES: { value: Rol; label: string; area: string }[] = [
-  { value: "superadmin", label: "Superadministrador", area: "Dirección de Innovación Digital" },
   { value: "admin", label: "Administrador", area: "Dirección de Innovación Digital" },
   { value: "tecnico", label: "Técnico", area: "Dirección de Servicios Tecnológicos" },
   { value: "auditor", label: "Auditor", area: "Dirección de Servicios Tecnológicos" },
@@ -40,20 +39,18 @@ export const PRIORIDAD_LABEL: Record<Prioridad, string> = {
 }
 
 export const ROL_LABEL: Record<Rol, string> = {
-  superadmin: "Superadministrador",
   admin: "Administrador",
   tecnico: "Técnico",
   auditor: "Auditor",
 }
 
 export const ROL_AREA: Record<Rol, string> = {
-  superadmin: "Dirección de Innovación Digital",
   admin: "Dirección de Innovación Digital",
   tecnico: "Dirección de Servicios Tecnológicos",
   auditor: "Dirección de Servicios Tecnológicos",
 }
 
-// Permisos por rol (defaults). superadmin = todo.
+// Permisos por rol (defaults). admin = todo.
 export type Permiso =
   | "reportes.crear"
   | "reportes.editar"
@@ -69,11 +66,6 @@ export type Permiso =
   | "cuenta.eliminar"
 
 export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
-  superadmin: [
-    "reportes.crear", "reportes.editar", "reportes.eliminar", "reportes.ver_todos",
-    "reportes.asignar", "reportes.cambiar_estado", "usuarios.gestionar", "catalogos.gestionar",
-    "estadisticas.ver", "ranking.ver", "exportar", "cuenta.eliminar",
-  ],
   admin: [
     "reportes.crear", "reportes.editar", "reportes.eliminar", "reportes.ver_todos",
     "reportes.asignar", "reportes.cambiar_estado", "usuarios.gestionar", "catalogos.gestionar",
@@ -160,12 +152,12 @@ export const INSTITUCION = {
   ley: "Ley 1581 de 2012 y Decreto 1377 de 2013 (Colombia)",
 }
 
-// Credenciales del superadmin bootstrap (única cuenta raíz)
-export const SUPERADMIN_DEFAULT = {
-  username: "superadmin",
+// Credenciales del admin bootstrap (cuenta inicial)
+export const ADMIN_DEFAULT = {
+  username: "admin",
   email: "innovacion.did@iris.uh.cu",
   name: "Dirección de Innovación Digital",
-  cargo: "Superadministrador del Sistema",
+  cargo: "Administrador del Sistema",
   password: "SRT-DID-2026!", // cambiar tras primer inicio (se notifica en UI)
 }
 

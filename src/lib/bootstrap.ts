@@ -1,65 +1,66 @@
 import { db } from "@/lib/db"
 import { hashPassword } from "@/lib/auth"
 import {
-  SUPERADMIN_DEFAULT, TIPOS_TAREA_DEFAULT, TIPOS_AREA_DEFAULT, TIPOS_EQUIPO_DEFAULT,
+  ADMIN_DEFAULT, TIPOS_TAREA_DEFAULT, TIPOS_AREA_DEFAULT, TIPOS_EQUIPO_DEFAULT,
 } from "@/lib/constants"
 
-let bootstrapped = false
+let initialization: Promise<void> | undefined
 
-// Crea el superadmin único y los catálogos del sistema si no existen.
-// Idempotente: seguro llamarlo en cada arranque del servidor.
-export async function ensureBootstrap() {
-  if (bootstrapped) return
-  bootstrapped = true
-  try {
-    // --- Superadmin (única cuenta raíz) ---
-    const existing = await db.user.findFirst({ where: { role: "superadmin" } })
+// Comparte la inicialización concurrente y permite reintentar si falla.
+export function ensureBootstrap(): Promise<void> {
+  if (!initialization) {
+    initialization = initialize().catch((error) => {
+      initialization = undefined
+      throw error
+    })
+  }
+  return initialization
+}
+
+async function initialize() {
+  await db.$transaction(async (tx) => {
+    // Compatibilidad con instalaciones anteriores: conservar identidad y credenciales.
+    await tx.user.updateMany({ where: { role: "superadmin" }, data: { role: "admin" } })
+    const existing = await tx.user.findFirst({ where: { role: "admin" } })
     if (!existing) {
-      await db.user.create({
+      await tx.user.create({
         data: {
-          username: SUPERADMIN_DEFAULT.username,
-          email: SUPERADMIN_DEFAULT.email,
-          name: SUPERADMIN_DEFAULT.name,
-          cargo: SUPERADMIN_DEFAULT.cargo,
-          password: hashPassword(SUPERADMIN_DEFAULT.password),
-          role: "superadmin",
+          username: ADMIN_DEFAULT.username,
+          email: ADMIN_DEFAULT.email,
+          name: ADMIN_DEFAULT.name,
+          cargo: ADMIN_DEFAULT.cargo,
+          password: hashPassword(ADMIN_DEFAULT.password),
+          role: "admin",
           activo: true,
         },
       })
-      console.log("[bootstrap] ✅ Superadmin creado (username: superadmin)")
     }
 
-    // --- Tipos de área ---
-    const taCount = await db.tipoArea.count()
-    if (taCount === 0) {
-      for (const t of TIPOS_AREA_DEFAULT) await db.tipoArea.create({ data: t })
-      console.log("[bootstrap] ✅ Tipos de área creados")
+    // update vacío conserva nombres editados, descripciones y estados existentes.
+    for (const tipo of TIPOS_AREA_DEFAULT) {
+      await tx.tipoArea.upsert({ where: { nombre: tipo.nombre }, create: tipo, update: {} })
     }
 
-    // --- Áreas mínimas (DID + DST) si no hay ninguna ---
-    const areaCount = await db.area.count()
-    if (areaCount === 0) {
-      const ti = await db.tipoArea.findFirst({ where: { nombre: "TI" } })
-      const adm = await db.tipoArea.findFirst({ where: { nombre: "Administrativa" } })
-      if (ti) await db.area.create({ data: { nombre: "Dirección de Innovación Digital", tipoAreaId: ti.id, responsable: "Director DID" } })
-      if (adm) await db.area.create({ data: { nombre: "Dirección de Servicios Tecnológicos", tipoAreaId: adm.id, responsable: "Director DST" } })
-      console.log("[bootstrap] ✅ Áreas DID/DST creadas")
+    const areas = [
+      { nombre: "Dirección de Innovación Digital", tipo: "TI", responsable: "Director DID" },
+      { nombre: "Dirección de Servicios Tecnológicos", tipo: "Administrativa", responsable: "Director DST" },
+    ]
+    for (const { tipo, ...area } of areas) {
+      const tipoArea = await tx.tipoArea.findUniqueOrThrow({ where: { nombre: tipo } })
+      await tx.area.upsert({
+        where: { nombre: area.nombre },
+        create: { ...area, tipoAreaId: tipoArea.id },
+        update: {},
+      })
     }
 
-    // --- Tipos de tarea ---
-    const ttCount = await db.tipoTarea.count()
-    if (ttCount === 0) {
-      for (const t of TIPOS_TAREA_DEFAULT) await db.tipoTarea.create({ data: { codigo: t.codigo, nombre: t.nombre, activo: true } })
-      console.log("[bootstrap] ✅ Tipos de tarea creados")
+    for (const tipo of TIPOS_TAREA_DEFAULT) {
+      await tx.tipoTarea.upsert({
+        where: { codigo: tipo.codigo }, create: { ...tipo, activo: true }, update: {},
+      })
     }
-
-    // --- Tipos de equipo ---
-    const teCount = await db.tipoEquipo.count()
-    if (teCount === 0) {
-      for (const n of TIPOS_EQUIPO_DEFAULT) await db.tipoEquipo.create({ data: { nombre: n } })
-      console.log("[bootstrap] ✅ Tipos de equipo creados")
+    for (const nombre of TIPOS_EQUIPO_DEFAULT) {
+      await tx.tipoEquipo.upsert({ where: { nombre }, create: { nombre }, update: {} })
     }
-  } catch (e) {
-    console.error("[bootstrap] error:", e)
-  }
+  }, { timeout: 20_000 })
 }

@@ -213,7 +213,7 @@ const MEDIDAS_SEGURIDAD = [
   {
     icon: Shield,
     title: "Control de accesos por rol (RBAC)",
-    text: "Permisos diferenciados para superadmin, admin, técnico y auditor. Cada usuario accede únicamente a la información necesaria para su función (principio de menor privilegio).",
+    text: "Permisos diferenciados para admin, técnico y auditor. Cada usuario accede únicamente a la información necesaria para su función (principio de menor privilegio).",
   },
   {
     icon: Lock,

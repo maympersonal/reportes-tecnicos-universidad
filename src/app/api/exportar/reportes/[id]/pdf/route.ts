@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest } from "@/lib/auth"
+import { getUserFromRequest, tienePermiso } from "@/lib/auth"
 import { INSTITUCION } from "@/lib/constants"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params
   const r = await getReporte(id)
   if (!r) return NextResponse.json({ error: "No encontrado" }, { status: 404 })
-  if (user.role === "tecnico" && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
+  if (!tienePermiso(user, "reportes.ver_todos") && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 

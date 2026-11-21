@@ -5,7 +5,7 @@ import { ensureBootstrap } from "@/lib/bootstrap"
 
 export async function POST(req: NextRequest) {
   try {
-    // Asegura que el superadmin y catálogos existan (idempotente)
+    // Asegura que el admin y catálogos existan (idempotente)
     await ensureBootstrap()
     const { username, password } = await req.json()
     if (!username || !password) {
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 })
     }
     const token = await createSession(user.id)
-    return NextResponse.json({ user: publicUser(user), token, debeCambiarPassword: user.role === "superadmin" && password === "SRT-DID-2026!" })
+    return NextResponse.json({ user: publicUser(user), token, debeCambiarPassword: user.role === "admin" && password === "SRT-DID-2026!" })
   } catch (e) {
     console.error("[login]", e)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest } from "@/lib/auth"
+import { getUserFromRequest, tienePermiso } from "@/lib/auth"
 import { serializeReporte } from "@/lib/serialize"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
@@ -14,10 +14,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const r = await db.reporte.findUnique({ where: { id } })
   if (!r) return NextResponse.json({ error: "No encontrado" }, { status: 404 })
-  if (user.role === "auditor") {
-    return NextResponse.json({ error: "El auditor no puede subir archivos" }, { status: 403 })
+  if (!tienePermiso(user, "reportes.editar")) {
+    return NextResponse.json({ error: "Sin permiso para editar reportes" }, { status: 403 })
   }
-  if (user.role === "tecnico" && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
+  if (!tienePermiso(user, "reportes.ver_todos") && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 

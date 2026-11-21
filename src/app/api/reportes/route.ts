@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest } from "@/lib/auth"
+import { reservarCodigoReporte } from "@/lib/codigo-reporte"
+import { getUserFromRequest, tienePermiso } from "@/lib/auth"
 import { serializeReporteLite } from "@/lib/serialize"
 
 // GET /api/reportes — listado con filtros y paginación
@@ -20,15 +21,15 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(sp.get("page") || "1", 10))
   const pageSize = Math.min(100, Math.max(1, parseInt(sp.get("pageSize") || "10", 10)))
 
-  // Filtro de visibilidad por rol
+  // Limitar a reportes propios o asignados sin permiso de acceso global
   let vis: Record<string, unknown> = {}
-  if (user.role === "tecnico") {
+  if (!tienePermiso(user, "reportes.ver_todos")) {
     vis = {
       OR: [{ creadoPorId: user.id }, { tecnicoAsignadoId: user.id }],
     }
   }
 
-  const where: Record<string, unknown> = { ...vis }
+  const where: Record<string, unknown> = { AND: [vis] }
   if (estado) where.estado = estado
   if (prioridad) where.prioridad = prioridad
   if (tipoTarea) where.tipoTareaId = tipoTarea
@@ -73,8 +74,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req)
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
-  if (user.role === "auditor") {
-    return NextResponse.json({ error: "El auditor no puede crear reportes" }, { status: 403 })
+  if (!tienePermiso(user, "reportes.crear")) {
+    return NextResponse.json({ error: "Sin permiso para crear reportes" }, { status: 403 })
   }
 
   const body = await req.json()
@@ -98,59 +99,58 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Generar código RPT-YYYY-XXXX
-  const year = new Date().getFullYear()
-  const count = await db.reporte.count()
-  const codigo = `RPT-${year}-${String(count + 1).padStart(4, "0")}`
+  if (tecnicoAsignadoId !== undefined && !tienePermiso(user, "reportes.asignar")) {
+    return NextResponse.json({ error: "Sin permiso para asignar técnicos" }, { status: 403 })
+  }
 
-  // Solo admin puede asignar técnico
-  const tecnicoId = user.role === "admin" && tecnicoAsignadoId ? String(tecnicoAsignadoId) : null
+  // La autorización de asignación se comprobó antes de guardar
+  const tecnicoId = tecnicoAsignadoId ? String(tecnicoAsignadoId) : null
 
-  const reporte = await db.reporte.create({
-    data: {
-      codigo,
-      tipoTareaId: String(tipoTareaId),
-      descripcion: String(descripcion),
-      areaId: String(areaId),
-      ubicacion: ubicacion ? String(ubicacion) : null,
-      usuarioNombre: String(usuarioNombre),
-      usuarioCorreo: String(usuarioCorreo),
-      usuarioCargo: usuarioCargo ? String(usuarioCargo) : null,
-      prioridad: String(prioridad),
-      estado: "pendiente",
-      creadoPorId: user.id,
-      tecnicoAsignadoId: tecnicoId,
-      equipos: Array.isArray(equipos) && equipos.length > 0
-        ? { create: (equipos as Record<string, unknown>[]).map((e) => ({
-            tipoEquipoId: (e.tipoEquipoId as string) || null,
-            tipoTexto: (e.tipoTexto as string) || null,
-            codigoActivo: (e.codigoActivo as string) || null,
-            marca: (e.marca as string) || null,
-            modelo: (e.modelo as string) || null,
-            serie: (e.serie as string) || null,
-          })) }
-        : undefined,
-    },
-    include: {
-      tipoTarea: true,
-      area: true,
-      tecnicoAsignado: true,
-      creadoPor: true,
-      equipos: true,
-      archivos: true,
-      historial: { include: { usuario: true }, orderBy: { fecha: "asc" } },
-    },
-  })
-
-  // Historial inicial
-  await db.historialEstado.create({
-    data: {
-      reporteId: reporte.id,
-      estadoAnterior: null,
-      estadoNuevo: "pendiente",
-      comentario: "Reporte creado",
-      usuarioId: user.id,
-    },
+  const reporte = await db.$transaction(async (tx) => {
+    const codigo = await reservarCodigoReporte(tx, new Date().getFullYear())
+    return tx.reporte.create({
+      data: {
+        codigo,
+        tipoTareaId: String(tipoTareaId),
+        descripcion: String(descripcion),
+        areaId: String(areaId),
+        ubicacion: ubicacion ? String(ubicacion) : null,
+        usuarioNombre: String(usuarioNombre),
+        usuarioCorreo: String(usuarioCorreo),
+        usuarioCargo: usuarioCargo ? String(usuarioCargo) : null,
+        prioridad: String(prioridad),
+        estado: "pendiente",
+        creadoPorId: user.id,
+        historial: {
+          create: {
+            estadoAnterior: null,
+            estadoNuevo: "pendiente",
+            comentario: "Reporte creado",
+            usuarioId: user.id,
+          },
+        },
+        tecnicoAsignadoId: tecnicoId,
+        equipos: Array.isArray(equipos) && equipos.length > 0
+          ? { create: (equipos as Record<string, unknown>[]).map((e) => ({
+              tipoEquipoId: (e.tipoEquipoId as string) || null,
+              tipoTexto: (e.tipoTexto as string) || null,
+              codigoActivo: (e.codigoActivo as string) || null,
+              marca: (e.marca as string) || null,
+              modelo: (e.modelo as string) || null,
+              serie: (e.serie as string) || null,
+            })) }
+          : undefined,
+      },
+      include: {
+        tipoTarea: true,
+        area: true,
+        tecnicoAsignado: true,
+        creadoPor: true,
+        equipos: true,
+        archivos: true,
+        historial: { include: { usuario: true }, orderBy: { fecha: "asc" } },
+      },
+    })
   })
 
   // Notificaciones: a todos los administradores + técnico asignado (si hay)
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
         usuarioId: uid,
         tipo: "nuevo_reporte",
         titulo: "Nuevo reporte creado",
-        mensaje: `${user.name} creó el reporte ${codigo}`,
+        mensaje: `${user.name} creó el reporte ${reporte.codigo}`,
         reporteId: reporte.id,
       })),
     })

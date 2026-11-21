@@ -176,23 +176,20 @@ export function UsuariosDialog({
   }
 
   // Roles disponibles para crear/editar:
-  // - nunca `superadmin`
-  // - `admin` sólo si el usuario actual es superadmin
+  // - `admin` sólo si el usuario actual es admin
   const rolesDisponibles = useMemo(() => {
     return ROLES.filter((r) => {
-      if (r.value === "superadmin") return false
-      if (r.value === "admin" && me?.role !== "superadmin") return false
+      if (r.value === "admin" && me?.role !== "admin") return false
       return true
     })
   }, [me?.role])
 
-  // Caso especial: el superadmin edita su propia cuenta → role bloqueado,
-  // permisos ocultos.
-  const isSuperadminSelf =
+  // Las cuentas administrativas conservan su rol y todos los permisos.
+  // El estado también queda bloqueado.
+  const isAdminAccount =
     mode === "edit" &&
-    me?.role === "superadmin" &&
-    usuario?.role === "superadmin" &&
-    usuario?.id === me?.id
+    me?.role === "admin" &&
+    usuario?.role === "admin"
 
   // Contraseña: checklist local en vivo
   const reglasLive = useMemo(() => reglasPassword(form.password), [form.password])
@@ -206,11 +203,10 @@ export function UsuariosDialog({
   const camposBasicosValidos =
     form.name.trim() !== "" &&
     form.username.trim() !== "" &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
-    form.role !== "superadmin"
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
 
   const permisosValidos =
-    isSuperadminSelf ||
+    form.role === "admin" ||
     form.usarPermisosPorRol ||
     form.permisos.length > 0
 
@@ -235,8 +231,7 @@ export function UsuariosDialog({
       errs.push("La contraseña no cumple los requisitos de seguridad")
     if (mode === "edit" && form.password !== "" && !passwordEsFuerte(form.password))
       errs.push("La contraseña nueva no cumple los requisitos de seguridad")
-    if (form.role === "superadmin") errs.push("No se pueden crear cuentas superadmin")
-    if (!isSuperadminSelf && !form.usarPermisosPorRol && form.permisos.length === 0)
+    if (form.role !== "admin" && !form.usarPermisosPorRol && form.permisos.length === 0)
       errs.push("Selecciona al menos un permiso o usa los defaults del rol")
     return errs
   }
@@ -270,8 +265,8 @@ export function UsuariosDialog({
     } else {
       // edit
       if (form.password) body.password = form.password
-      // Permisos: si es superadmin self, no enviamos nada (locked).
-      if (!isSuperadminSelf) {
+      // Permisos: si es cuenta administrativa, no enviamos nada (locked).
+      if (!isAdminAccount) {
         body.usarPermisosPorRol = form.usarPermisosPorRol
         if (!form.usarPermisosPorRol) body.permisos = form.permisos
       }
@@ -370,14 +365,14 @@ export function UsuariosDialog({
             </Alert>
           )}
 
-          {/* Aviso especial para superadmin self */}
-          {isSuperadminSelf && (
+          {/* Aviso especial para cuenta administrativa */}
+          {isAdminAccount && (
             <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
               <Lock className="h-4 w-4" />
-              <AlertTitle>Cuenta superadmin</AlertTitle>
+              <AlertTitle>Cuenta admin</AlertTitle>
               <AlertDescription className="text-xs">
-                Estás editando tu propia cuenta. El rol y los permisos están
-                bloqueados: el superadmin siempre posee todos los permisos.
+                Estás editando una cuenta administrativa. El rol y los permisos están
+                bloqueados: el admin siempre posee todos los permisos.
               </AlertDescription>
             </Alert>
           )}
@@ -480,14 +475,14 @@ export function UsuariosDialog({
               <Select
                 value={form.role}
                 onValueChange={(v) => update("role", v as Rol)}
-                disabled={isSuperadminSelf}
+                disabled={isAdminAccount}
               >
                 <SelectTrigger id="u-role" className="w-full">
                   <SelectValue placeholder="Selecciona un rol" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(isSuperadminSelf
-                    ? ROLES.filter((r) => r.value === "superadmin")
+                  {(isAdminAccount
+                    ? ROLES.filter((r) => r.value === "admin")
                     : rolesDisponibles
                   ).map((r) => (
                     <SelectItem key={r.value} value={r.value}>
@@ -497,10 +492,10 @@ export function UsuariosDialog({
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground">
-                {isSuperadminSelf
-                  ? "Bloqueado para superadmin."
-                  : me?.role !== "superadmin"
-                    ? "Solo el superadmin puede crear administradores."
+                {isAdminAccount
+                  ? "Bloqueado para admin."
+                  : me?.role !== "admin"
+                    ? "Solo el admin puede crear administradores."
                     : "Elige el rol de la cuenta."}
               </p>
             </div>
@@ -513,7 +508,7 @@ export function UsuariosDialog({
                   id="u-activo"
                   checked={form.activo}
                   onCheckedChange={(v) => update("activo", v)}
-                  disabled={isSuperadminSelf}
+                  disabled={isAdminAccount}
                 />
                 <span className="text-xs">
                   {form.activo ? "Activa" : "Inactiva (baja)"}
@@ -582,8 +577,8 @@ export function UsuariosDialog({
             </ul>
           </section>
 
-          {/* Permisos — oculto para superadmin self */}
-          {!isSuperadminSelf && (
+          {/* Permisos — oculto para cuenta administrativa */}
+          {form.role !== "admin" && (
             <section className="space-y-3 rounded-lg border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">

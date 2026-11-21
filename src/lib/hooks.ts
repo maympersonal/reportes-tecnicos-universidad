@@ -91,31 +91,38 @@ export function useCambiarPassword() {
 
 // --- Catálogos ---
 export function useTiposTarea() {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["tipos-tarea"],
-    queryFn: () => apiFetch<{ items: { id: string; codigo: string; nombre: string }[] }>(`/tipos-tarea`),
+    enabled: !!user,
+    queryKey: ["tipos-tarea", user?.id],
+    queryFn: ({ signal }) => apiFetch<{ items: { id: string; codigo: string; nombre: string }[] }>(`/tipos-tarea`, { signal }),
   })
 }
 export function useAreas() {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["areas"],
-    queryFn: () =>
+    enabled: !!user,
+    queryKey: ["areas", user?.id],
+    queryFn: ({ signal }) =>
       apiFetch<{
         items: { id: string; nombre: string; tipoAreaId: string; tipoAreaNombre: string | null; responsable: string | null }[]
-      }>(`/areas`),
+      }>(`/areas`, { signal }),
   })
 }
 export function useUbicaciones(areaId?: string) {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["ubicaciones", areaId ?? ""],
-    queryFn: () => apiFetch<{ items: { id: string; nombre: string; areaId: string; areaNombre: string | null; edificio: string | null; piso: string | null; referencia: string | null }[] }>(`/ubicaciones${areaId ? `?area=${areaId}` : ""}`),
-    enabled: !!areaId || areaId === undefined,
+    queryKey: ["ubicaciones", user?.id, areaId ?? ""],
+    queryFn: ({ signal }) => apiFetch<{ items: { id: string; nombre: string; areaId: string; areaNombre: string | null; edificio: string | null; piso: string | null; referencia: string | null }[] }>(`/ubicaciones${areaId ? `?area=${areaId}` : ""}`, { signal }),
+    enabled: !!user && (!!areaId || areaId === undefined),
   })
 }
 export function useTecnicos() {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["tecnicos"],
-    queryFn: () => apiFetch<{ items: { id: string; name: string; username: string; cargo: string | null; email: string }[] }>(`/tecnicos`),
+    enabled: !!user,
+    queryKey: ["tecnicos", user?.id],
+    queryFn: ({ signal }) => apiFetch<{ items: { id: string; name: string; username: string; cargo: string | null; email: string }[] }>(`/tecnicos`, { signal }),
   })
 }
 
@@ -128,17 +135,18 @@ export function useReportes(opts: ReportesFilter & { page?: number; pageSize?: n
   })
   const qs = params.toString()
   return useQuery({
-    queryKey: ["reportes", qs],
-    queryFn: () => apiFetch<{ items: ReporteLite[]; total: number; page: number; pageSize: number; totalPages: number }>(`/reportes${qs ? `?${qs}` : ""}`),
+    queryKey: ["reportes", user?.id, qs],
+    queryFn: ({ signal }) => apiFetch<{ items: ReporteLite[]; total: number; page: number; pageSize: number; totalPages: number }>(`/reportes${qs ? `?${qs}` : ""}`, { signal }),
     enabled: !!user,
   })
 }
 
 export function useReporte(id: string | null) {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["reporte", id],
-    queryFn: () => apiFetch<{ item: ReporteFull }>(`/reportes/${id}`),
-    enabled: !!id,
+    queryKey: ["reporte", user?.id, id],
+    queryFn: ({ signal }) => apiFetch<{ item: ReporteFull }>(`/reportes/${id}`, { signal }),
+    enabled: !!user && !!id,
   })
 }
 
@@ -156,12 +164,13 @@ export function useCrearReporte() {
 }
 
 export function useActualizarReporte(id: string) {
+  const userId = useAppStore((s) => s.user?.id)
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: Record<string, unknown>) =>
       apiFetch<{ item: ReporteFull }>(`/reportes/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: (res) => {
-      qc.setQueryData(["reporte", id], res)
+      qc.setQueryData(["reporte", userId, id], res)
       qc.invalidateQueries({ queryKey: ["reportes"] })
       qc.invalidateQueries({ queryKey: ["estadisticas"] })
     },
@@ -169,12 +178,13 @@ export function useActualizarReporte(id: string) {
 }
 
 export function useCambiarEstado(id: string) {
+  const userId = useAppStore((s) => s.user?.id)
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: { estado: string; comentario?: string; solucion?: string; tecnicoAsignadoId?: string | null }) =>
       apiFetch<{ item: ReporteFull }>(`/reportes/${id}/cambiar-estado`, { method: "POST", body: JSON.stringify(body) }),
     onSuccess: (res) => {
-      qc.setQueryData(["reporte", id], res)
+      qc.setQueryData(["reporte", userId, id], res)
       qc.invalidateQueries({ queryKey: ["reportes"] })
       qc.invalidateQueries({ queryKey: ["estadisticas"] })
       qc.invalidateQueries({ queryKey: ["notificaciones-pendientes"] })
@@ -194,6 +204,7 @@ export function useEliminarReporte() {
 }
 
 export function useSubirArchivo(id: string) {
+  const userId = useAppStore((s) => s.user?.id)
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (file: File) => {
@@ -203,17 +214,18 @@ export function useSubirArchivo(id: string) {
       return apiUpload<{ item: ReporteFull }>(`/reportes/${id}/subir-archivo`, fd)
     },
     onSuccess: (res) => {
-      qc.setQueryData(["reporte", id], res)
+      qc.setQueryData(["reporte", userId, id], res)
     },
   })
 }
 
 export function useEliminarArchivo(id: string) {
+  const userId = useAppStore((s) => s.user?.id)
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (aid: string) => apiFetch(`/reportes/${id}/eliminar-archivo/${aid}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["reporte", id] })
+      qc.invalidateQueries({ queryKey: ["reporte", userId, id] })
     },
   })
 }
@@ -223,48 +235,60 @@ export function useResumen(desde?: string, hasta?: string) {
   const qs = new URLSearchParams()
   if (desde) qs.set("desde", desde)
   if (hasta) qs.set("hasta", hasta)
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["estadisticas", "resumen", desde ?? "", hasta ?? ""],
-    queryFn: () => apiFetch<Resumen>(`/estadisticas/resumen${qs.toString() ? `?${qs}` : ""}`),
+    enabled: !!user,
+    queryKey: ["estadisticas", user?.id, "resumen", desde ?? "", hasta ?? ""],
+    queryFn: ({ signal }) => apiFetch<Resumen>(`/estadisticas/resumen${qs.toString() ? `?${qs}` : ""}`, { signal }),
   })
 }
 export function usePorMes() {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["estadisticas", "por-mes"],
-    queryFn: () => apiFetch<{ items: { label: string; key: string; total: number; resueltos: number }[] }>(`/estadisticas/por-mes`),
+    enabled: !!user,
+    queryKey: ["estadisticas", user?.id, "por-mes"],
+    queryFn: ({ signal }) => apiFetch<{ items: { label: string; key: string; total: number; resueltos: number }[] }>(`/estadisticas/por-mes`, { signal }),
   })
 }
 export function usePorTipo(desde?: string, hasta?: string) {
   const qs = new URLSearchParams()
   if (desde) qs.set("desde", desde)
   if (hasta) qs.set("hasta", hasta)
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["estadisticas", "por-tipo", desde ?? "", hasta ?? ""],
-    queryFn: () => apiFetch<{ items: { name: string; value: number }[] }>(`/estadisticas/por-tipo${qs.toString() ? `?${qs}` : ""}`),
+    enabled: !!user,
+    queryKey: ["estadisticas", user?.id, "por-tipo", desde ?? "", hasta ?? ""],
+    queryFn: ({ signal }) => apiFetch<{ items: { name: string; value: number }[] }>(`/estadisticas/por-tipo${qs.toString() ? `?${qs}` : ""}`, { signal }),
   })
 }
 export function usePorArea(desde?: string, hasta?: string) {
   const qs = new URLSearchParams()
   if (desde) qs.set("desde", desde)
   if (hasta) qs.set("hasta", hasta)
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["estadisticas", "por-area", desde ?? "", hasta ?? ""],
-    queryFn: () => apiFetch<{ items: { name: string; value: number }[] }>(`/estadisticas/por-area${qs.toString() ? `?${qs}` : ""}`),
+    enabled: !!user,
+    queryKey: ["estadisticas", user?.id, "por-area", desde ?? "", hasta ?? ""],
+    queryFn: ({ signal }) => apiFetch<{ items: { name: string; value: number }[] }>(`/estadisticas/por-area${qs.toString() ? `?${qs}` : ""}`, { signal }),
   })
 }
 export function usePorTecnico(desde?: string, hasta?: string) {
   const qs = new URLSearchParams()
   if (desde) qs.set("desde", desde)
   if (hasta) qs.set("hasta", hasta)
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["estadisticas", "por-tecnico", desde ?? "", hasta ?? ""],
-    queryFn: () => apiFetch<{ items: { name: string; asignados: number; resueltos: number; tiempoProm: number | null }[] }>(`/estadisticas/por-tecnico${qs.toString() ? `?${qs}` : ""}`),
+    enabled: !!user,
+    queryKey: ["estadisticas", user?.id, "por-tecnico", desde ?? "", hasta ?? ""],
+    queryFn: ({ signal }) => apiFetch<{ items: { name: string; asignados: number; resueltos: number; tiempoProm: number | null }[] }>(`/estadisticas/por-tecnico${qs.toString() ? `?${qs}` : ""}`, { signal }),
   })
 }
 export function useRanking(q?: string) {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["estadisticas", "ranking", q ?? ""],
-    queryFn: () => apiFetch<{
+    enabled: !!user,
+    queryKey: ["estadisticas", user?.id, "ranking", q ?? ""],
+    queryFn: ({ signal }) => apiFetch<{
       items: {
         id: string
         name: string
@@ -276,7 +300,7 @@ export function useRanking(q?: string) {
         score: number
         activo: boolean
       }[]
-    }>(`/estadisticas/ranking${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+    }>(`/estadisticas/ranking${q ? `?q=${encodeURIComponent(q)}` : ""}`, { signal }),
   })
 }
 
@@ -284,8 +308,8 @@ export function useRanking(q?: string) {
 export function useNotificacionesPendientes() {
   const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["notificaciones-pendientes"],
-    queryFn: () => apiFetch<{ count: number; items: Notificacion[] }>(`/notificaciones/pendientes`),
+    queryKey: ["notificaciones-pendientes", user?.id],
+    queryFn: ({ signal }) => apiFetch<{ count: number; items: Notificacion[] }>(`/notificaciones/pendientes`, { signal }),
     enabled: !!user,
     refetchInterval: 30_000,
   })
@@ -325,9 +349,11 @@ export function useUsuarios(opts: { q?: string; rol?: string; baja?: "true" | "f
   const params = new URLSearchParams()
   Object.entries(opts).forEach(([k, v]) => { if (v !== undefined && v !== "" && v !== null) params.set(k, String(v)) })
   const qs = params.toString()
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["usuarios", qs],
-    queryFn: () => apiFetch<{ items: UsuarioItem[] }>(`/usuarios${qs ? `?${qs}` : ""}`),
+    enabled: !!user,
+    queryKey: ["usuarios", user?.id, qs],
+    queryFn: ({ signal }) => apiFetch<{ items: UsuarioItem[] }>(`/usuarios${qs ? `?${qs}` : ""}`, { signal }),
   })
 }
 
@@ -365,9 +391,11 @@ export function useRestaurarUsuario() {
 
 // --- Tipos de equipo ---
 export function useTiposEquipo() {
+  const user = useAppStore((s) => s.user)
   return useQuery({
-    queryKey: ["tipos-equipo"],
-    queryFn: () => apiFetch<{ items: { id: string; nombre: string }[] }>(`/tipos-equipo`),
+    enabled: !!user,
+    queryKey: ["tipos-equipo", user?.id],
+    queryFn: ({ signal }) => apiFetch<{ items: { id: string; nombre: string }[] }>(`/tipos-equipo`, { signal }),
   })
 }
 

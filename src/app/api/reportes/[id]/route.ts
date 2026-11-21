@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest } from "@/lib/auth"
+import { getUserFromRequest, tienePermiso } from "@/lib/auth"
 import { serializeReporte } from "@/lib/serialize"
 
 // GET /api/reportes/{id}
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   if (!r) return NextResponse.json({ error: "No encontrado" }, { status: 404 })
 
   // Visibilidad
-  if (user.role === "tecnico" && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
+  if (!tienePermiso(user, "reportes.ver_todos") && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
   return NextResponse.json({ item: serializeReporte(r) })
@@ -39,12 +39,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const r = await db.reporte.findUnique({ where: { id } })
   if (!r) return NextResponse.json({ error: "No encontrado" }, { status: 404 })
 
-  // Auditor no edita
-  if (user.role === "auditor") {
-    return NextResponse.json({ error: "El auditor no puede editar" }, { status: 403 })
+  // Permiso de edición
+  if (!tienePermiso(user, "reportes.editar")) {
+    return NextResponse.json({ error: "Sin permiso para editar reportes" }, { status: 403 })
   }
-  // Técnico: solo sus reportes
-  if (user.role === "tecnico" && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
+  // Sin acceso global: solo reportes propios o asignados
+  if (!tienePermiso(user, "reportes.ver_todos") && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 
@@ -73,8 +73,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (usuarioCorreo !== undefined) data.usuarioCorreo = usuarioCorreo
   if (usuarioCargo !== undefined) data.usuarioCargo = usuarioCargo
   if (prioridad !== undefined) data.prioridad = prioridad
-  // Solo admin puede reasignar técnico
-  if (tecnicoAsignadoId !== undefined && user.role === "admin") {
+  // Reasignación autorizada por permiso
+  if (tecnicoAsignadoId !== undefined) {
+    if (!tienePermiso(user, "reportes.asignar")) {
+      return NextResponse.json({ error: "Sin permiso para asignar técnicos" }, { status: 403 })
+    }
     data.tecnicoAsignadoId = tecnicoAsignadoId || null
   }
 
@@ -127,14 +130,19 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   return NextResponse.json({ item: serializeReporte(updated) })
 }
 
-// DELETE /api/reportes/{id} — solo admin
+// DELETE /api/reportes/{id} — requiere permiso de eliminación
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getUserFromRequest(req)
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
-  if (user.role !== "admin") {
-    return NextResponse.json({ error: "Solo el administrador puede eliminar" }, { status: 403 })
+  if (!tienePermiso(user, "reportes.eliminar")) {
+    return NextResponse.json({ error: "Sin permiso para eliminar reportes" }, { status: 403 })
   }
   const { id } = await ctx.params
-  await db.reporte.delete({ where: { id } }).catch(() => null)
+  const r = await db.reporte.findUnique({ where: { id } })
+  if (!r) return NextResponse.json({ error: "No encontrado" }, { status: 404 })
+  if (!tienePermiso(user, "reportes.ver_todos") && r.creadoPorId !== user.id && r.tecnicoAsignadoId !== user.id) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  }
+  await db.reporte.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

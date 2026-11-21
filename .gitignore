@@ -40,3 +40,7 @@ backend/sync_data/
 .DS_Store
 Thumbs.db
 '@ | Set-Content -Path .gitignore -Encoding UTF8
+
+# Artefactos de compilación de Next.js y TypeScript
+.next/
+*.tsbuildinfo

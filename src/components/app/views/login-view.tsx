@@ -6,7 +6,7 @@ import { useAppStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { INSTITUCION, SUPERADMIN_DEFAULT } from "@/lib/constants"
+import { INSTITUCION, ADMIN_DEFAULT } from "@/lib/constants"
 import { toast } from "sonner"
 import { Wrench, Shield, FileText, Loader2, Mail, ArrowRight, BarChart3, Users, ClipboardList, Eye, EyeOff, Lock } from "lucide-react"
 
@@ -81,7 +81,7 @@ export function LoginView() {
           {/* Directrices institucionales */}
           <div className="mt-6 space-y-1.5 rounded-lg bg-white/10 p-4 text-xs backdrop-blur">
             <p className="font-semibold text-white">Administración del sistema</p>
-            <p className="text-white/80">{INSTITUCION.direccion} (superadmin y administradores)</p>
+            <p className="text-white/80">{INSTITUCION.direccion} (administradores)</p>
             <p className="mt-2 font-semibold text-white">Uso operativo</p>
             <p className="text-white/80">{INSTITUCION.direccionServicios} (técnicos y auditores)</p>
           </div>
@@ -150,19 +150,19 @@ export function LoginView() {
             </Button>
           </form>
 
-          {/* Acceso superadmin (única cuenta raíz) */}
+          {/* Acceso admin (cuenta administrativa inicial) */}
           <div className="mt-6 rounded-lg border border-amber-300/50 bg-amber-50/60 p-3 dark:bg-amber-500/10">
             <p className="mb-2 text-xs font-medium text-amber-800 dark:text-amber-300">
-              🔑 Cuenta superadmin (cambia la contraseña tras ingresar):
+              🔑 Cuenta admin (cambia la contraseña tras ingresar):
             </p>
             <button
-              onClick={() => quickFill(SUPERADMIN_DEFAULT.username, SUPERADMIN_DEFAULT.password)}
+              onClick={() => quickFill(ADMIN_DEFAULT.username, ADMIN_DEFAULT.password)}
               className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-medium hover:bg-accent"
             >
-              Autocompletar superadmin
+              Autocompletar admin
             </button>
             <p className="mt-2 text-[10px] text-muted-foreground">
-              Usuario: <span className="font-mono">{SUPERADMIN_DEFAULT.username}</span> · La única cuenta raíz, creada automáticamente.
+              Usuario: <span className="font-mono">{ADMIN_DEFAULT.username}</span> · La cuenta administrativa inicial, creada automáticamente.
             </p>
           </div>
 

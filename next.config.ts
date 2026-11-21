@@ -26,9 +26,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Desactiva el indicador flotante del botón "N" de Next.js en desarrollo
   devIndicators: false,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   reactStrictMode: false,
   // Orígenes permitidos durante el desarrollo (evita el aviso de cross-origin
   // cuando la vista previa del IDE accede a los recursos /_next/*).

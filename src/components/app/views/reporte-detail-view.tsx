@@ -92,7 +92,9 @@ export function ReporteDetailView() {
   const setView = useAppStore((s) => s.setView)
   const id = useAppStore((s) => s.selectedReporteId)
 
-  const isAuditor = user?.role === "auditor"
+  const puedeEditar = user?.permisos?.includes("reportes.editar") ?? false
+  const puedeCambiarEstado = user?.permisos?.includes("reportes.cambiar_estado") ?? false
+  const puedeAsignar = user?.permisos?.includes("reportes.asignar") ?? false
 
   const { data, isLoading, isError, error, refetch } = useReporte(id)
   const item = data?.item
@@ -191,7 +193,7 @@ export function ReporteDetailView() {
         comentario: estadoForm.comentario || undefined,
         solucion: estadoForm.solucion || undefined,
         tecnicoAsignadoId:
-          user?.role === "admin"
+          puedeAsignar
             ? estadoForm.tecnicoAsignadoId || null
             : undefined,
       },
@@ -278,7 +280,7 @@ export function ReporteDetailView() {
           >
             <FileType className="h-4 w-4" /> Word
           </Button>
-          {!isAuditor && (
+          {puedeEditar && (
             <Button
               size="sm"
               onClick={() => setView("reporte-editar", { reporteId: item.id })}
@@ -446,7 +448,7 @@ export function ReporteDetailView() {
                   {item.archivos.length} archivo(s)
                 </CardDescription>
               </div>
-              {!isAuditor && (
+              {puedeEditar && (
                 <div>
                   <input
                     ref={fileInputRef}
@@ -503,7 +505,7 @@ export function ReporteDetailView() {
                       >
                         <Download className="h-4 w-4" />
                       </a>
-                      {!isAuditor && (
+                      {puedeEditar && (
                         <button
                           type="button"
                           onClick={() =>
@@ -530,7 +532,7 @@ export function ReporteDetailView() {
         {/* RIGHT */}
         <div className="space-y-4">
           {/* Cambiar estado */}
-          {!isAuditor && (
+          {puedeCambiarEstado && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -599,7 +601,7 @@ export function ReporteDetailView() {
                     />
                   </div>
 
-                  {user?.role === "admin" && (
+                  {puedeAsignar && (
                     <div className="space-y-1.5">
                       <Label htmlFor="tecnico" className="text-xs">
                         Técnico asignado

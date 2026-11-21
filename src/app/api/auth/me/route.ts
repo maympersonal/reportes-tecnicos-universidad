@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest } from "@/lib/auth"
+import { getUserFromRequest, getPermisos } from "@/lib/auth"
 
 // GET /api/auth/me — datos del usuario actual
 export async function GET(req: NextRequest) {
@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
       email: user.email,
       name: user.name,
       role: user.role,
+      permisos: getPermisos(user),
       cargo: user.cargo,
       telefono: user.telefono,
       areaId: user.areaId,

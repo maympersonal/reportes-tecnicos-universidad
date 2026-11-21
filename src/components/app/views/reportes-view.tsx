@@ -69,7 +69,8 @@ export function ReportesView() {
   const storeFilter = useAppStore((s) => s.reportesFilter)
   const setReportesFilter = useAppStore((s) => s.setReportesFilter)
 
-  const isAuditor = user?.role === "auditor"
+  const puedeCrear = user?.permisos?.includes("reportes.crear") ?? false
+  const puedeEditar = user?.permisos?.includes("reportes.editar") ?? false
 
   // Local filter state, initialized from store (so the dashboard's "ver críticos" works)
   const [filtros, setFiltros] = useState<ReportesFilter>(() => ({ ...storeFilter }))
@@ -153,7 +154,7 @@ export function ReportesView() {
             <FileSpreadsheet className="h-4 w-4" />
             <span className="hidden sm:inline">Excel</span>
           </Button>
-          {!isAuditor && (
+          {puedeCrear && (
             <Button
               size="sm"
               onClick={() => setView("reporte-nuevo")}
@@ -338,7 +339,7 @@ export function ReportesView() {
                       <Inbox className="h-8 w-8" />
                       <p className="text-sm font-medium">No se encontraron reportes</p>
                       <p className="text-xs">Ajusta los filtros o crea un nuevo reporte</p>
-                      {!isAuditor && (
+                      {puedeCrear && (
                         <Button size="sm" variant="outline" className="mt-2 gap-2" onClick={() => setView("reporte-nuevo")}>
                           <Plus className="h-4 w-4" /> Crear reporte
                         </Button>
@@ -384,7 +385,7 @@ export function ReportesView() {
                       {fmtFecha(r.fechaCreacion)}
                     </TableCell>
                     <TableCell className="px-3 text-right">
-                      {!isAuditor ? (
+                      {puedeEditar ? (
                         <Button
                           variant="ghost"
                           size="sm"

@@ -8,10 +8,9 @@ instala por primera vez: cada paso dice **qué hacer, cómo verificarlo y qué h
 > **Stack:** Next.js 16 (React 19) · TypeScript 5 · Tailwind CSS 4 · shadcn/ui · Prisma + SQLite ·
 > TanStack Query · Zustand · framer-motion · recharts · jsPDF/xlsx
 
-> ⚡ **Dato importante sobre los datos:** la aplicación arranca **siempre con la base de datos
-> vacía**. Los datos de demostración viven en un script aparte (`bun run seed`) y **se eliminan
-> automáticamente cada vez que reinicias la app en el IDE**. Así trabajas siempre sobre datos
-> limpios y decides cuándo cargar el escenario demo.
+> ⚡ **Persistencia:** reiniciar la aplicación conserva los datos. `bun run seed` prepara
+> los datos básicos; `bun run seed:demo` agrega ejemplos opcionales sin duplicarlos.
+> El reinicio manual de pruebas se explica en [prisma/README.md](prisma/README.md).
 
 ---
 
@@ -177,6 +176,7 @@ DATABASE_URL="file:../db/custom.db"
 
 ```bash
 bun run db:push
+bun run seed
 ```
 
 **Verifica:** verás un mensaje como `Your database is now in sync with your Prisma schema. Done in …`
@@ -186,16 +186,10 @@ bun run db:push
 
 ### 5.3 ¿Qué pasa con los datos cuando reinicio la app?
 
-Cada vez que ejecutes `bun run dev`, el script `predev` corre automáticamente
-`prisma/reset-db.ts`, que:
-
-1. 🧹 Elimina el archivo de base de datos anterior (`db/custom.db`).
-2. 🗄 Recrea el esquema vacío.
-3. ✅ Deja la app lista en **cero datos**.
-
-Esto es intencional: **los datos simulados nunca persisten entre sesiones del IDE**.
-Si quieres trabajar con el escenario completo de prueba, ejecuta el seed (sección 7) después
-de cada reinicio.
+Los datos se conservan al ejecutar `bun run dev` o `bun run dev:lan`. No hay un
+`predev` que borre la base. `bun run seed` crea los datos básicos faltantes sin
+sobrescribir los existentes. Para reiniciar una base de pruebas separada, consulta
+[prisma/README.md](prisma/README.md).
 
 ---
 
@@ -208,48 +202,34 @@ bun run dev
 Verás algo como:
 
 ```
-🧹 [reset-db] Limpiando base de datos para un inicio fresco...
-🗄  [reset-db] Sincronizando esquema Prisma (base vacía)...
-✅ [reset-db] Base de datos vacía y lista.
-   💡 ¿Quieres datos de demostración? Ejecuta: bun run seed
-
-▲ Next.js 16.x (Turbopack)
+▲ Next.js 16.x (webpack)
 - Local: http://localhost:3000
 ✓ Ready in 800ms
 ```
 
 Abre <http://localhost:3000> en tu navegador. Verás la pantalla de inicio de sesión.
 
-> 🔎 **Pantalla de "Base de datos vacía":** si aún no cargaste el seed, el login te mostrará un
-> aviso amarillo recordándote ejecutar `bun run seed`. Es el comportamiento esperado.
+El administrador y los catálogos básicos se preparan con `bun run seed`;
+el inicio de sesión también ejecuta esa inicialización si las tablas ya existen.
 
-Para **detener** el servidor: `Ctrl+C` en la terminal.
-Para **reiniciarlo**: vuelve a ejecutar `bun run dev` (la BD se limpia de nuevo, como se explicó).
+Para **detener** el servidor: `Ctrl+C`. Para **reiniciarlo**: `bun run dev`.
 
 ---
 
 ## 7. Datos de demostración (seed)
 
-Los datos simulados viven en `prisma/seed-demo.ts` — **no están dentro de la app**.
+Los datos simulados viven en `prisma/seed-demo.ts` y son opcionales:
 
 ```bash
-bun run seed
+bun run seed:demo
 ```
 
-Este script crea:
+Crea seis cuentas con prefijo `demo.`, 21 reportes distribuidos en los últimos tres
+meses, historiales y algunos equipos. Los códigos `DEMO-0001` a `DEMO-0021` son
+estables: repetir el comando no duplica los ejemplos ni cambia las contraseñas.
+Las cuentas nuevas usan `DEMO_PASSWORD` si está definida, o `Temporal2026!`.
+Los ejemplos se conservan al reiniciar. Este comando se rechaza en producción.
 
-- **Catálogos**: 4 tipos de área, 8 áreas (incluyendo *Dirección de Innovación Digital* y
-  *Dirección de Servicios Tecnológicos*), 9 ubicaciones, 8 tipos de tarea y 14 tipos de equipo.
-- **6 usuarios** (ver sección 8) con contraseña `Demo2025`.
-- **53 reportes** distribuidos en los últimos 6 meses, con equipos, historial de estados,
-  notificaciones y tiempos de resolución realistas.
-
-**Verifica:** recarga el navegador, el aviso amarillo desaparece y podrás iniciar sesión.
-
-> 🔄 Recuerda: al reiniciar `bun run dev`, la base se limpia y deberás volver a ejecutar
-> `bun run seed` si quieres el escenario demo. Si prefieres empezar a registrar datos reales,
-> simplemente crea los catálogos y cuentas que necesites con la cuenta admin — la app funciona
-> completa sin seed.
 
 ---
 
@@ -260,15 +240,20 @@ La aplicación es **creada y administrada por la Dirección de Innovación Digit
 
 | Usuario | Contraseña | Rol | Dirección | Puede |
 |---------|-----------|-----|-----------|-------|
-| `admin` | `Demo2025` | Administrador | Innovación Digital | Todo: catálogos, cuentas, asignar técnicos, eliminar reportes |
-| `tec1` (Ana García) | `Demo2025` | Técnica de Hardware | Servicios Tecnológicos | Crear/actualizar sus reportes, registrar soluciones, nuevos tipos |
-| `tec2` (Luis Fernández) | `Demo2025` | Técnico de Redes | Servicios Tecnológicos | Igual que tec1 |
-| `tec3` (María López) | `Demo2025` | Técnica de Software | Servicios Tecnológicos | Igual que tec1 |
-| `tec4` (José Ramírez) | `Demo2025` | Soporte General | Servicios Tecnológicos | Igual que tec1 |
-| `auditor` (Patricia Díaz) | `Demo2025` | Auditor | Servicios Tecnológicos | Solo lectura de todo + exportar informes |
+| `demo.admin` | `Temporal2026!` | Administrador | Innovación Digital | Todo: catálogos, cuentas, asignar técnicos, eliminar reportes |
+| `demo.tec1` (Ana García) | `Temporal2026!` | Técnica de Hardware | Servicios Tecnológicos | Crear/actualizar sus reportes, registrar soluciones, nuevos tipos |
+| `demo.tec2` (Luis Fernández) | `Temporal2026!` | Técnico de Redes | Servicios Tecnológicos | Igual que tec1 |
+| `demo.tec3` (María López) | `Temporal2026!` | Técnica de Software | Servicios Tecnológicos | Igual que tec1 |
+| `demo.tec4` (José Ramírez) | `Temporal2026!` | Soporte General | Servicios Tecnológicos | Igual que tec1 |
+| `demo.auditor` (Patricia Díaz) | `Temporal2026!` | Auditor | Servicios Tecnológicos | Solo lectura de todo + exportar informes |
 
-**Consejo de prueba:** entra como `admin` para administrar, como `tec1` para sentir el flujo del
-técnico, y como `auditor` para ver el modo supervisión.
+**Consejo de prueba:** entra como `demo.admin` para administrar, como `demo.tec1` para sentir el flujo del
+técnico, y como `demo.auditor` para ver el modo supervisión.
+
+El rol `admin` tiene todos los permisos. Los permisos personalizados de técnicos
+y auditores reemplazan los permisos predeterminados de su rol. Al actualizar
+una instalación anterior, el bootstrap convierte `superadmin` a `admin` sin
+cambiar el usuario ni la contraseña: las cuentas existentes conservan su acceso.
 
 ### 8.1 Gestión de usuarios (solo admin)
 
@@ -293,10 +278,11 @@ sincronizan desde el LDAP universitario**: viven en la base local del servidor d
 
 | Comando | Qué hace |
 |---------|----------|
-| `bun run dev` | **Limpia la BD + arranca el servidor de desarrollo** en el puerto 3000 |
+| `bun run dev` | **Arranca el servidor de desarrollo conservando los datos** en el puerto 3000 |
 | `bun run dev:lan` | Arranca desarrollo **accesible desde otros equipos de la red** (0.0.0.0, no borra la BD) |
-| `bun run seed` | Carga los datos de demostración (`prisma/seed-demo.ts`) |
-| `bun run db:fresh` | Limpia la BD manualmente (igual que el arranque automático) |
+| `bun run seed` | Crea los datos básicos faltantes (`prisma/seed.ts`) |
+| `bun run seed:demo` | Agrega ejemplos opcionales sin duplicarlos |
+| `bun run db:fresh --confirm-reset` | Reinicia solo una base de pruebas; exige `NODE_ENV=development` (ver `prisma/README.md`) |
 | `bun run db:push` | Sincroniza `prisma/schema.prisma` con la base (crea/actualiza tablas) |
 | `bun run db:generate` | Regenera el cliente Prisma (tras cambios de esquema) |
 | `bun run lint` | Revisa la calidad del código con ESLint |
@@ -319,9 +305,10 @@ sincronizan desde el LDAP universitario**: viven en la base local del servidor d
 reportes-tecnicos/
 ├── prisma/
 │   ├── schema.prisma        # Esquema de la BD (12 modelos: User, Reporte, TipoEquipo…)
-│   ├── seed-demo.ts         # ⭐ Datos simulados (se cargan con: bun run seed)
-│   └── reset-db.ts          # ⭐ Limpieza automática en cada arranque (predev)
-├── db/custom.db             # Base de datos SQLite (se crea con db:push; se borra en cada dev)
+│   ├── seed.ts              # Datos básicos, sin borrar registros
+│   ├── seed-demo.ts         # Ejemplos opcionales: bun run seed:demo
+│   └── reset-db.ts          # Reinicio manual protegido de pruebas
+├── db/custom.db             # Base de datos SQLite (se crea con db:push; persiste entre arranques)
 ├── .env                     # DATABASE_URL (ruta local del archivo SQLite)
 ├── public/uploads/          # Archivos adjuntos de los reportes
 ├── .vscode/                 # Configuración y extensiones recomendadas de VSC
@@ -363,7 +350,7 @@ reportes-tecnicos/
 
 ## 11. Verificación final (checklist)
 
-Con la app corriendo (`bun run dev` + `bun run seed`), comprueba:
+Con la app corriendo (`bun run dev` + `bun run seed:demo`), comprueba:
 
 - [ ] Login con `admin / Demo2025` → entra al **Dashboard** con KPIs animados.
 - [ ] **Reportes → Nuevo reporte**: el formulario abre con **prioridad Media** por defecto.
@@ -391,17 +378,17 @@ Con la app corriendo (`bun run dev` + `bun run seed`), comprueba:
 |----------|----------------|----------|
 | `Cannot find module '@prisma/client'` | Cliente de Prisma sin generar | `bun run db:generate` |
 | `Error code 14: Unable to open the database file` | Ruta de `.env` incorrecta o carpeta `db/` inexistente | Verifica `DATABASE_URL="file:../db/custom.db"` y que exista la carpeta `db/` en la raíz |
-| El login dice **«Base de datos vacía»** | Acabas de reiniciar la app (comportamiento esperado) | Ejecuta `bun run seed` en otra terminal y recarga |
+| El login dice **«Base de datos vacía»** | Faltan tablas o datos iniciales | Ejecuta `bun run db:push` y `bun run seed`; después recarga |
 | `EADDRINUSE: port 3000 is in use` | Otro proceso usa el puerto 3000 | Cierra el otro servidor o cambia el puerto en `package.json` (`next dev -p 3001`) |
 | La página queda en blanco | Error de JavaScript en el navegador | Abre la consola (`F12` → Console), revisa el error y ejecuta `bun run lint` |
 | `bun: command not found` | Bun no está en el PATH | Reinicia la terminal/IDE tras instalar Bun, o usa `npm run dev` |
 | Errores de tipos en `db.usuario…` | Cliente Prisma desactualizado | `bun run db:generate` y recarga la ventana de VSC (`Ctrl+Shift+P` → Reload Window) |
 | El seed falla con «not found» | Falta `db:push` antes del seed | Ejecuta `bun run db:push` y luego `bun run seed` |
-| Cambié el esquema y no se refleja | Falta sincronizar | `bun run db:push` (ojo: reiniciar `dev` limpia los datos) |
+| Cambié el esquema y no se refleja | Falta sincronizar | `bun run db:push` y revisa los avisos antes de aceptar cambios destructivos |
 | Los PDF no se descargan | Navegador bloqueó la descarga | Permite descargas del sitio; el archivo va a la carpeta de descargas |
 
-> 🆘 **Último recurso:** borra `db/custom.db`, ejecuta `bun run db:push` + `bun run seed` y
-> reinicia `bun run dev`.
+> Para reiniciar datos de prueba usa el procedimiento protegido de
+> [prisma/README.md](prisma/README.md). Conserva la base real `db/custom.db`.
 
 ---
 
@@ -580,7 +567,7 @@ reportes.institucion.edu {
   validación de datos con Zod, sesiones con expiración y contraseñas con política
   mínima de 8 caracteres.
 - Cambia las contraseñas demo antes de habilitar usuarios reales (desde
-  **Usuarios → editar → contraseña**, disponible para superadmin/admin).
+  **Usuarios → editar → contraseña**, disponible para admin).
 - `robots.txt` ya bloquea indexadores; no enlaces la app desde sitios públicos.
 - Haz copia periódica de `db/custom.db` (es un único archivo SQLite: basta copiarlo
   con la app detenida) o usa los respaldos automáticos de bajas en `db/backups/`.

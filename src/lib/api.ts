@@ -23,6 +23,7 @@ export async function apiFetch<T = unknown>(
   opts: FetchOpts = {}
 ): Promise<T> {
   const { auth = true, headers, ...rest } = opts
+  const sessionVersion = useAppStore.getState().sessionVersion
   const token = auth ? useAppStore.getState().token : null
 
   const finalHeaders: Record<string, string> = {
@@ -50,12 +51,15 @@ export async function apiFetch<T = unknown>(
   if (!res.ok) {
     if (res.status === 401 && auth && !path.startsWith("/auth/")) {
       // sesión expirada: desloguear y forzar login
-      useAppStore.getState().logout()
+      // Una respuesta de una sesión anterior no debe cerrar la sesión actual.
+      if (useAppStore.getState().sessionVersion === sessionVersion) {
+        useAppStore.getState().logout()
+      }
       throw new ApiError("Sesión expirada", 401, data)
     }
     const msg =
-      (data && typeof data === "object" && "error" in data && String((data as { error: unknown }).error)) ||
-      (data && typeof data === "object" && "message" in data && String((data as { message: unknown }).message)) ||
+      (data !== null && typeof data === "object" && "error" in data && String(data.error)) ||
+      (data !== null && typeof data === "object" && "message" in data && String(data.message)) ||
       `Error ${res.status}`
     throw new ApiError(msg, res.status, data)
   }
@@ -77,7 +81,7 @@ export async function apiUpload<T = unknown>(path: string, formData: FormData): 
   }
   if (!res.ok) {
     const msg =
-      (data && typeof data === "object" && "error" in data && String((data as { error: unknown }).error)) ||
+      (data !== null && typeof data === "object" && "error" in data && String(data.error)) ||
       `Error ${res.status}`
     throw new ApiError(msg, res.status, data)
   }

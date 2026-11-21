@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { getUserFromRequest } from "@/lib/auth"
+import { getUserFromRequest, tienePermiso } from "@/lib/auth"
 
 export async function GET() {
   const items = await db.tipoTarea.findMany({
@@ -12,10 +12,10 @@ export async function GET() {
   })
 }
 
-// Crear nuevo tipo de tarea (solo admin)
+// Crear nuevo tipo de tarea con permiso de gestión de catálogos
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req)
-  if (!user || user.role !== "admin") {
+  if (!user || !tienePermiso(user, "catalogos.gestionar")) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
   const { nombre } = await req.json()
