@@ -1,0 +1,10 @@
+INFORME: VERSIÓN DE PHP DE DIME ANTES Y DESPUÉS DE LA ACTUALIZACIÓN
+
+============================================================
+1. RESUMEN EJECUTIVO
+============================================================
+- Antes de la actualización: GLPI se ejecutaba sobre PHP 8.2.23
+- Dado que la rama PHP 8.2 fue una de las ramas parcheadas para corregir la vulnerabilidad en la versión 8.2.35, es posible actualizar directamente; no obstante, antes debe comprobarse que la versión de GLPI sea compatible.
+- La versión de GLPI instalada es la 10.0.15 y, al ser compatible con PHP 8.2.35, se procedió a actualizar PHP.
+- Tras la actualización, se reinició el servicio mediante systemctl.
+- Finalmente, se verificó que la versión en ejecución correspondiera a la versión actualizada (PHP 8.2.35).

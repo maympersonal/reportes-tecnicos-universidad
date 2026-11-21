@@ -147,7 +147,7 @@ En la terminal integrada de VSC:
 bun install
 ```
 
-> Con npm: `npm install`
+> Con npm: ` `
 
 Esto instala todas las librerías del proyecto: `next`, `react`, `prisma`, `tailwindcss`,
 `framer-motion`, `recharts`, `xlsx`, `jspdf`, etc. Tarda entre 30 s y 3 min según tu conexión.
